@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { User, Channel, ChannelMembership, Message, Reaction, File } from '../types/dataStructures';
+import { User, Channel, ChannelMembership, Message, Reaction, Attachment } from '../types/dataStructures';
 
 function generateRandomDate(start: Date, end: Date): Date {
   return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
@@ -18,6 +18,39 @@ const exampleMessages = [
   "Don't forget about the team lunch next week.",
   "I've just pushed the changes to the repo.",
   "Has anyone tested the latest build yet?"
+];
+
+const sampleFiles = [
+  {
+    filename: 'presentation.pdf',
+    fileUrl: 'https://example.com/files/presentation.pdf',
+    contentType: 'application/pdf',
+  },
+  {
+    filename: 'meeting-notes.pdf',
+    fileUrl: 'https://example.com/files/meeting-notes.pdf',
+    contentType: 'application/pdf',
+  },
+  {
+    filename: 'team-photo.jpg',
+    fileUrl: 'https://picsum.photos/800/600',  // Random image from Lorem Picsum
+    contentType: 'image/jpeg',
+  },
+  {
+    filename: 'screenshot.png',
+    fileUrl: 'https://picsum.photos/1024/768',
+    contentType: 'image/png',
+  },
+  {
+    filename: 'requirements.docx',
+    fileUrl: 'https://example.com/files/requirements.docx',
+    contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  },
+  {
+    filename: 'data.xlsx',
+    fileUrl: 'https://example.com/files/data.xlsx',
+    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  }
 ];
 
 export function generateSampleData() {
@@ -44,7 +77,7 @@ export function generateSampleData() {
   const channelMemberships: ChannelMembership[] = [];
   const messages: Message[] = [];
   const reactions: Reaction[] = [];
-  const files: File[] = [];
+  const files: Attachment[] = [];
 
   // Generate channel memberships
   channels.forEach(channel => {
@@ -74,6 +107,7 @@ export function generateSampleData() {
         parentMessageId: null,
         createdAt: createdAt,
         updatedAt: createdAt,
+        attachments: []
       });
 
       // Add reactions to some messages
@@ -89,14 +123,14 @@ export function generateSampleData() {
 
       // Add files to some messages
       if (Math.random() > 0.9) { // 10% chance of a file
-        files.push({
+        const randomFile = sampleFiles[Math.floor(Math.random() * sampleFiles.length)];
+        const attachment: Attachment = {
           id: uuidv4(),
           messageId: messageId,
-          filename: `file_${i + 1}.txt`,
-          fileUrl: `https://example.com/files/file_${i + 1}.txt`,
-          contentType: 'text/plain',
+          ...randomFile,
           createdAt: generateRandomDate(createdAt, new Date()),
-        });
+        };
+        messages[messages.length - 1].attachments.push(attachment);
       }
 
       // Add some threaded replies
@@ -113,6 +147,7 @@ export function generateSampleData() {
             parentMessageId: messageId,
             createdAt: replyCreatedAt,
             updatedAt: replyCreatedAt,
+            attachments: []
           });
         }
       }
@@ -154,7 +189,7 @@ export function generateSampleData() {
         const sender = Math.random() > 0.5 ? users[i] : users[j];
         const messageId = uuidv4();
         const createdAt = generateRandomDate(dmCreatedAt, new Date());
-        messages.push({
+        const message = {
           id: messageId,
           channelId: dmChannelId,
           senderId: sender.id,
@@ -162,7 +197,27 @@ export function generateSampleData() {
           parentMessageId: null,
           createdAt: createdAt,
           updatedAt: createdAt,
-        });
+          attachments: [],
+        };
+        
+        // 20% chance of attachments in DMs
+        if (Math.random() > 0.8) {
+          const addMultipleAttachments = (message: Message) => {
+            const attachmentCount = Math.floor(Math.random() * 3) + 1; // 1-3 attachments
+            for (let i = 0; i < attachmentCount; i++) {
+              const randomFile = sampleFiles[Math.floor(Math.random() * sampleFiles.length)];
+              message.attachments.push({
+                id: uuidv4(),
+                messageId: message.id,
+                ...randomFile,
+                createdAt: generateRandomDate(message.createdAt, new Date()),
+              });
+            }
+          };
+          addMultipleAttachments(message);
+        }
+        
+        messages.push(message);
       }
     }
   }

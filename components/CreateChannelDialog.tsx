@@ -27,7 +27,7 @@ export function CreateChannelDialog({ onCreateChannel }: CreateChannelDialogProp
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="w-full mt-4">Create Channel</Button>
+        <Button variant="outline" className="w-full mt-4 text-white bg-blue-600 hover:bg-blue-700 rounded">Create Channel</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>

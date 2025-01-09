@@ -9,6 +9,8 @@ import { SearchBar } from '@/components/SearchBar'
 import { SearchResults } from '@/components/SearchResults'
 import { generateSampleData } from '@/utils/sampleDataGenerator'
 import { User, Channel, Message, Reaction, Attachment } from '@/types/dataStructures'
+import { CircleStatus } from '@/components/ui/circle-status'
+import { Hash } from 'lucide-react'
 
 export default function Page() {
   const [sampleData, setSampleData] = useState(() => {
@@ -22,7 +24,10 @@ export default function Page() {
   const [messages, setMessages] = useState<Message[]>([])
   const [openThreadId, setOpenThreadId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<{ message: Message; channel: Channel }[]>([])
+  const [searchResults, setSearchResults] = useState<{
+    messages: { message: Message; channel: Channel }[];
+    files: { attachment: Attachment; message: Message; channel: Channel }[];
+  }>({ messages: [], files: [] })
 
   useEffect(() => {
     if (selectedChannelId) {
@@ -41,14 +46,14 @@ export default function Page() {
     setSelectedChannelId(channelId)
     setSelectedUserId(null)
     setOpenThreadId(null)
-    setSearchResults([])
+    setSearchResults({ messages: [], files: [] })
   }
 
   const handleSelectUser = (userId: string) => {
     setSelectedUserId(userId)
     setSelectedChannelId(null)
     setOpenThreadId(null)
-    setSearchResults([])
+    setSearchResults({ messages: [], files: [] })
   }
 
   const handleSendMessage = async (content: string, attachments: File[]) => {
@@ -183,17 +188,26 @@ export default function Page() {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    const results = sampleData.messages.filter((message) => {
-      const contentMatch = message.content.toLowerCase().includes(query.toLowerCase())
-      const filenameMatch = (message.attachments ?? []).some((attachment) =>
-        attachment.filename.toLowerCase().includes(query.toLowerCase())
+    const messageResults = sampleData.messages
+      .filter(message => message.content.toLowerCase().includes(query.toLowerCase()))
+      .map(message => ({
+        message,
+        channel: sampleData.channels.find(c => c.id === message.channelId)!
+      }));
+
+    const fileResults = sampleData.messages
+      .flatMap(message => 
+        message.attachments.map(attachment => ({
+          attachment,
+          message,
+          channel: sampleData.channels.find(c => c.id === message.channelId)!
+        }))
       )
-      return contentMatch || filenameMatch
-    }).map(message => ({
-      message,
-      channel: sampleData.channels.find(c => c.id === message.channelId)!
-    }))
-    setSearchResults(results)
+      .filter(({ attachment }) => 
+        attachment.filename.toLowerCase().includes(query.toLowerCase())
+      );
+
+    setSearchResults({ messages: messageResults, files: fileResults });
   }
 
   const handleSelectSearchResult = (channelId: string, messageId: string) => {
@@ -201,7 +215,7 @@ export default function Page() {
     setSelectedUserId(null)
     setOpenThreadId(messageId)
     setSearchQuery('')
-    setSearchResults([])
+    setSearchResults({ messages: [], files: [] })
   }
 
   const handleSetUserStatus = (newStatus: string) => {
@@ -244,8 +258,8 @@ export default function Page() {
   const selectedUser = sampleData.users.find(u => u.id === selectedUserId)
 
   return (
-    <div className="flex flex-col h-screen">
-      <div className="flex-none p-4 border-b">
+    <div className="flex flex-col h-screen bg-gray-50 text-slate-700">
+      <div className="flex-none p-4 border-b border-gray-700 bg-gray-800 text-white">
         <SearchBar onSearch={handleSearch} />
       </div>
       <div className="flex flex-1 overflow-hidden">
@@ -269,13 +283,33 @@ export default function Page() {
             />
           ) : selectedChannel || selectedUser ? (
             <>
-              <div className="p-4 border-b">
+              <div className="p-4 border-b bg-white">
                 <h2 className="text-xl font-semibold">
-                  {selectedChannel ? `#${selectedChannel.name}` : selectedUser?.name}
+                  {selectedChannel ? (
+                    <div className="flex items-center gap-2">
+                      <Hash className="h-5 w-5" />
+                      {selectedChannel.name}
+                    </div>
+                  ) : selectedUser && (
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <span className="text-2xl">{selectedUser.avatar}</span>
+                        <CircleStatus isOnline={selectedUser.isOnline} />
+                      </div>
+                      <div className="flex flex-col">
+                        <span>{selectedUser.name}</span>
+                        {selectedUser.status && (
+                          <span className="text-sm text-gray-500">
+                            {selectedUser.status}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </h2>
               </div>
               <div className="flex-1 flex overflow-hidden">
-                <div className={`flex-1 flex flex-col ${openThreadId ? 'md:w-2/3' : 'w-full'}`}>
+                <div className={`flex-1 flex flex-col ${openThreadId ? 'md:w-2/3' : 'w-full'} bg-white border-l border-r`}>
                   <MessageList
                     messages={messages || []}
                     users={sampleData.users}

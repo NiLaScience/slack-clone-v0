@@ -1,41 +1,37 @@
 import { useState } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Button } from "@/components/ui/button"
 import { Smile } from 'lucide-react'
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react'
 
 interface ReactionPickerProps {
   onReact: (emoji: string) => void;
+  trigger?: React.ReactNode;
 }
 
-const emojis = ['👍', '❤️', '😂', '🎉', '🤔', '👀', '🔥', '🚀'];
-
-export function ReactionPicker({ onReact }: ReactionPickerProps) {
+export function ReactionPicker({ onReact, trigger }: ReactionPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
+
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    onReact(emojiData.emoji);
+    setIsOpen(false);
+  };
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm">
-          <Smile className="h-4 w-4 mr-1" />
-          React
-        </Button>
+        {trigger || (
+          <button className="text-gray-400 hover:text-gray-600">
+            <Smile className="h-4 w-4" />
+          </button>
+        )}
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0">
-        <div className="grid grid-cols-4 gap-2 p-2">
-          {emojis.map((emoji) => (
-            <Button
-              key={emoji}
-              variant="ghost"
-              className="text-lg"
-              onClick={() => {
-                onReact(emoji);
-                setIsOpen(false);
-              }}
-            >
-              {emoji}
-            </Button>
-          ))}
-        </div>
+      <PopoverContent className="w-[352px] p-0">
+        <EmojiPicker
+          onEmojiClick={handleEmojiClick}
+          autoFocusSearch={false}
+          width="100%"
+          height={400}
+        />
       </PopoverContent>
     </Popover>
   );

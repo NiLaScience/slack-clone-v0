@@ -1,50 +1,112 @@
+import { Message, Channel, User, Attachment } from "@/types/dataStructures"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Message, User, Channel } from "@/types/dataStructures"
-
-interface SearchResult {
-  message: Message;
-  channel: Channel;
-}
+import { FileIcon, MessageSquare } from 'lucide-react'
 
 interface SearchResultsProps {
-  results: SearchResult[];
+  results: {
+    messages: { message: Message; channel: Channel }[];
+    files: { attachment: Attachment; message: Message; channel: Channel }[];
+  };
   users: User[];
   onSelectResult: (channelId: string, messageId: string) => void;
 }
 
 export function SearchResults({ results, users, onSelectResult }: SearchResultsProps) {
   return (
-    <ScrollArea className="h-[calc(100vh-120px)] w-full max-w-md border rounded-md shadow-lg bg-white">
-      <div className="p-4">
-        <h2 className="text-lg font-semibold mb-4">Search Results</h2>
-        {results.length === 0 ? (
-          <p>No results found.</p>
-        ) : (
-          results.map((result) => (
-            <div
-              key={result.message.id}
-              className="mb-4 p-2 border rounded cursor-pointer hover:bg-gray-100"
-              onClick={() => onSelectResult(result.channel.id, result.message.id)}
-            >
-              <div className="flex items-center mb-2">
-                <span className="font-semibold mr-2">
-                  {users.find(u => u.id === result.message.senderId)?.name}
-                </span>
-                <span className="text-sm text-gray-500">
-                  in {result.channel.name}
-                </span>
-              </div>
-              <p className="text-sm">{result.message.content}</p>
-              {result.message.attachments && result.message.attachments.length > 0 && (
-                <div className="mt-2 text-sm text-gray-600">
-                  Attachments: {result.message.attachments.map(a => a.filename).join(', ')}
+    <ScrollArea className="flex-1 p-4">
+      {/* Messages Section */}
+      {results.messages.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-4 flex items-center">
+            <MessageSquare className="mr-2 h-5 w-5" />
+            Messages
+          </h2>
+          <div className="space-y-4">
+            {results.messages.map(({ message, channel }) => {
+              const sender = users.find(u => u.id === message.senderId);
+              return (
+                <div
+                  key={message.id}
+                  className="p-3 hover:bg-gray-100 rounded-md cursor-pointer"
+                  onClick={() => onSelectResult(channel.id, message.id)}
+                >
+                  <div className="flex items-center text-sm text-gray-500 mb-1">
+                    <span className="font-medium text-gray-700">{channel.name}</span>
+                    <span className="mx-2">•</span>
+                    <span>{sender?.name}</span>
+                  </div>
+                  <div className="text-gray-900">{message.content}</div>
                 </div>
-              )}
-            </div>
-          ))
-        )}
-      </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Files Section */}
+      {results.files.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-4 flex items-center">
+            <FileIcon className="mr-2 h-5 w-5" />
+            Files
+          </h2>
+          <div className="space-y-4">
+            {results.files.map(({ attachment, message, channel }) => {
+              const sender = users.find(u => u.id === message.senderId);
+              const isImage = attachment.contentType.startsWith('image/');
+              
+              return (
+                <div
+                  key={attachment.id}
+                  className="p-3 hover:bg-gray-100 rounded-md"
+                >
+                  <div className="flex items-center justify-between">
+                    <div 
+                      className="flex-1 cursor-pointer"
+                      onClick={() => onSelectResult(channel.id, message.id)}
+                    >
+                      <div className="flex items-center text-sm text-gray-500 mb-1">
+                        <span className="font-medium text-gray-700">{channel.name}</span>
+                        <span className="mx-2">•</span>
+                        <span>{sender?.name}</span>
+                      </div>
+                      <div className="flex items-center">
+                        {isImage ? (
+                          <img 
+                            src={attachment.fileUrl} 
+                            alt={attachment.filename}
+                            className="w-10 h-10 object-cover rounded mr-3"
+                          />
+                        ) : (
+                          <FileIcon className="w-10 h-10 p-2 bg-gray-100 rounded mr-3" />
+                        )}
+                        <span className="text-gray-900">{attachment.filename}</span>
+                      </div>
+                    </div>
+                    <a
+                      href={attachment.fileUrl}
+                      download={attachment.filename}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-4 px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      Download
+                    </a>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {results.messages.length === 0 && results.files.length === 0 && (
+        <div className="text-center text-gray-500 mt-8">
+          No results found
+        </div>
+      )}
     </ScrollArea>
-  )
+  );
 }
 

@@ -67,7 +67,7 @@ export function ThreadView({ parentMessage, replies, users, reactions, onClose, 
   };
 
   return (
-    <div className="flex flex-col h-full border-l">
+    <div className="flex flex-col h-full bg-white border-l p-4">
       <div className="flex justify-between items-center p-4 border-b">
         <h2 className="text-lg font-semibold">Thread</h2>
         <Button variant="ghost" size="icon" onClick={onClose}>

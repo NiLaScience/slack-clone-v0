@@ -15,15 +15,16 @@ export function SearchBar({ onSearch }: SearchBarProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="relative">
-      <Input
-        type="text"
-        placeholder="Search messages and files..."
+    <form onSubmit={handleSubmit} className="flex items-center">
+      <input
+        className="flex-1 bg-gray-700 text-white border-gray-600 rounded p-2 focus:outline-none focus:ring-1 focus:ring-gray-500 placeholder:text-gray-400"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        className="pl-10 pr-4 py-2 w-full"
+        placeholder="Search..."
       />
-      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+      <button type="submit" className="ml-2 text-sm bg-gray-700 text-white hover:bg-gray-600 rounded px-3 py-2">
+        Search
+      </button>
     </form>
   )
 }

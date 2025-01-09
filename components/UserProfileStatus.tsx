@@ -99,7 +99,7 @@ export function UserProfileStatus({ user, onSetUserStatus, onSetUserAvatar, onSe
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-48 p-2">
-          <div className="flex flex-col space-y-2">
+          <div className="flex flex-col space-y-2 bg-white shadow-md rounded-md p-3">
             {/* Editable name */}
             {!editName ? (
               <div className="flex justify-between items-center">
@@ -127,8 +127,8 @@ export function UserProfileStatus({ user, onSetUserStatus, onSetUserAvatar, onSe
               {emojiOptions.map((emoji) => (
                 <button
                   key={emoji}
+                  className="rounded hover:bg-gray-200 px-2"
                   onClick={() => handleSelectEmoji(emoji)}
-                  className="rounded hover:bg-gray-100 px-2"
                 >
                   {emoji}
                 </button>

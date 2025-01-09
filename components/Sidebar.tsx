@@ -21,14 +21,14 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, channels, users, onSelectChannel, onSelectUser, onCreateChannel, onSetUserStatus, onSetUserAvatar, onSetUserName }: SidebarProps) {
   const SidebarContent = () => (
-    <ScrollArea className="h-full py-6 pl-4 pr-6 flex flex-col">
+    <ScrollArea className="h-full py-6 pl-4 pr-6 flex flex-col bg-gray-800 text-white">
       <h2 className="mb-4 text-lg font-semibold">Channels</h2>
       <div className="space-y-2">
         {channels.map((channel) => (
           <Button
             key={channel.id}
             variant="ghost"
-            className="w-full justify-start"
+            className="w-full justify-start hover:bg-gray-700"
             onClick={() => onSelectChannel(channel.id)}
           >
             <Hash className="mr-2 h-4 w-4" />
