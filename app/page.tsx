@@ -11,7 +11,12 @@ import { generateSampleData } from '@/utils/sampleDataGenerator'
 import { User, Channel, Message, Reaction, Attachment } from '@/types/dataStructures'
 
 export default function Page() {
-  const [sampleData, setSampleData] = useState(() => generateSampleData())
+  const [sampleData, setSampleData] = useState(() => {
+    const data = generateSampleData()
+    // Mark the first user as online
+    data.users[0].isOnline = true
+    return data
+  })
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -178,9 +183,9 @@ export default function Page() {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    const results = sampleData.messages.filter(message => {
+    const results = sampleData.messages.filter((message) => {
       const contentMatch = message.content.toLowerCase().includes(query.toLowerCase())
-      const filenameMatch = message.attachments.some(attachment => 
+      const filenameMatch = (message.attachments ?? []).some((attachment) =>
         attachment.filename.toLowerCase().includes(query.toLowerCase())
       )
       return contentMatch || filenameMatch
@@ -195,7 +200,44 @@ export default function Page() {
     setSelectedChannelId(channelId)
     setSelectedUserId(null)
     setOpenThreadId(messageId)
+    setSearchQuery('')
     setSearchResults([])
+  }
+
+  const handleSetUserStatus = (newStatus: string) => {
+    setSampleData((prev) => {
+      const updatedUsers = prev.users.map((u, idx) => {
+        if (idx === 0) { // first user is "me"
+          return { ...u, status: newStatus, updatedAt: new Date() }
+        }
+        return u
+      })
+      return { ...prev, users: updatedUsers }
+    })
+  }
+
+  const handleSetUserAvatar = (newEmoji: string) => {
+    setSampleData((prev) => {
+      const updatedUsers = prev.users.map((u, idx) => {
+        if (idx === 0) {
+          return { ...u, avatar: newEmoji, updatedAt: new Date() }
+        }
+        return u
+      })
+      return { ...prev, users: updatedUsers }
+    })
+  }
+
+  const handleSetUserName = (newName: string) => {
+    setSampleData((prev) => {
+      const updatedUsers = prev.users.map((u, idx) => {
+        if (idx === 0) {
+          return { ...u, name: newName, updatedAt: new Date() }
+        }
+        return u
+      })
+      return { ...prev, users: updatedUsers }
+    })
   }
 
   const selectedChannel = sampleData.channels.find(c => c.id === selectedChannelId)
@@ -214,9 +256,18 @@ export default function Page() {
           onSelectChannel={handleSelectChannel}
           onSelectUser={handleSelectUser}
           onCreateChannel={handleCreateChannel}
+          onSetUserStatus={handleSetUserStatus}
+          onSetUserAvatar={handleSetUserAvatar}
+          onSetUserName={handleSetUserName}
         />
         <div className="flex-1 flex flex-col">
-          {selectedChannel || selectedUser ? (
+          {searchQuery.trim().length > 0 ? (
+            <SearchResults
+              results={searchResults}
+              users={sampleData.users}
+              onSelectResult={handleSelectSearchResult}
+            />
+          ) : selectedChannel || selectedUser ? (
             <>
               <div className="p-4 border-b">
                 <h2 className="text-xl font-semibold">
@@ -243,24 +294,18 @@ export default function Page() {
                 {openThreadId && (
                   <div className="hidden md:flex md:w-1/3 border-l">
                     <ThreadView
-                      parentMessage={messages.find(m => m.id === openThreadId)!}
-                      replies={messages.filter(m => m.parentMessageId === openThreadId)}
+                      parentMessage={messages.find((m) => m.id === openThreadId)!}
+                      replies={messages.filter((m) => m.parentMessageId === openThreadId)}
                       users={sampleData.users}
                       reactions={sampleData.reactions}
                       onClose={handleCloseThread}
-                      onReply={(content, attachments) => handleSendReply(content, attachments, openThreadId)}
+                      onReply={(content, parentMessageId) => handleSendReply(content, [], parentMessageId)}
                       onReact={handleReact}
                     />
                   </div>
                 )}
               </div>
             </>
-          ) : searchResults.length > 0 ? (
-            <SearchResults
-              results={searchResults}
-              users={sampleData.users}
-              onSelectResult={handleSelectSearchResult}
-            />
           ) : (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">

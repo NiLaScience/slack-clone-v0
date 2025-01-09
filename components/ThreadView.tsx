@@ -18,6 +18,10 @@ interface ThreadViewProps {
 }
 
 export function ThreadView({ parentMessage, replies, users, reactions, onClose, onReply, onReact }: ThreadViewProps) {
+  if (!parentMessage) {
+    return <div className="p-4">No parent message found.</div>
+  }
+
   const handleReply = (content: string) => {
     onReply(content, parentMessage.id);
   };
@@ -38,7 +42,7 @@ export function ThreadView({ parentMessage, replies, users, reactions, onClose, 
               </span>
             </div>
             <div>{message.content}</div>
-            {message.attachments.map((attachment) => (
+            {(message.attachments ?? []).map((attachment) => (
               <FileAttachment key={attachment.id} attachment={attachment} />
             ))}
             <div className="flex items-center space-x-2 mt-2">

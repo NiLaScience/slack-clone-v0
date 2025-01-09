@@ -29,6 +29,11 @@ export function generateSampleData() {
     { id: uuidv4(), name: 'Ethan Hunt', avatar: avatarEmojis[4], createdAt: new Date('2023-01-05'), updatedAt: new Date('2023-01-05') },
   ];
 
+  users.forEach((u) => {
+    u.isOnline = true
+    u.status = "Online"
+  })
+
   const channels: Channel[] = [
     { id: uuidv4(), name: 'General', isPrivate: false, createdAt: new Date('2023-01-01'), updatedAt: new Date('2023-01-01') },
     { id: uuidv4(), name: 'Random', isPrivate: false, createdAt: new Date('2023-01-02'), updatedAt: new Date('2023-01-02') },

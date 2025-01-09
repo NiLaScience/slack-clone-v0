@@ -4,6 +4,8 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Hash, User, Users, Menu } from 'lucide-react'
 import { Channel, User as UserType } from "@/types/dataStructures"
 import { CreateChannelDialog } from "./CreateChannelDialog"
+import { UserProfileStatus } from "./UserProfileStatus"
+import { CircleStatus } from "@/components/ui/circle-status"
 
 interface SidebarProps {
   isOpen: boolean;
@@ -12,11 +14,14 @@ interface SidebarProps {
   onSelectChannel: (channelId: string) => void;
   onSelectUser: (userId: string) => void;
   onCreateChannel: (name: string, isPrivate: boolean) => void;
+  onSetUserStatus: (newStatus: string) => void;
+  onSetUserAvatar: (newEmoji: string) => void;
+  onSetUserName: (newName: string) => void;
 }
 
-export function Sidebar({ isOpen, channels, users, onSelectChannel, onSelectUser, onCreateChannel }: SidebarProps) {
+export function Sidebar({ isOpen, channels, users, onSelectChannel, onSelectUser, onCreateChannel, onSetUserStatus, onSetUserAvatar, onSetUserName }: SidebarProps) {
   const SidebarContent = () => (
-    <ScrollArea className="h-full py-6 pl-4 pr-6">
+    <ScrollArea className="h-full py-6 pl-4 pr-6 flex flex-col">
       <h2 className="mb-4 text-lg font-semibold">Channels</h2>
       <div className="space-y-2">
         {channels.map((channel) => (
@@ -38,13 +43,29 @@ export function Sidebar({ isOpen, channels, users, onSelectChannel, onSelectUser
           <Button
             key={user.id}
             variant="ghost"
-            className="w-full justify-start"
+            className="w-full justify-start items-center"
             onClick={() => onSelectUser(user.id)}
           >
-            <span className="mr-2 text-xl">{user.avatar}</span>
-            {user.name}
+            <div className="flex items-center relative">
+              <div className="relative w-6 h-6 mr-2 flex items-center justify-center">
+                <span className="text-xl">{user.avatar}</span>
+                <CircleStatus isOnline={user.isOnline} />
+              </div>
+              <span>
+                {user.name}
+                {user.status ? ` - ${user.status}` : ""}
+              </span>
+            </div>
           </Button>
         ))}
+      </div>
+      <div className="mt-auto p-2 border-t">
+        <UserProfileStatus
+          user={users[0]}
+          onSetUserStatus={onSetUserStatus}
+          onSetUserAvatar={onSetUserAvatar}
+          onSetUserName={onSetUserName}
+        />
       </div>
     </ScrollArea>
   )
