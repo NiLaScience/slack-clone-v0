@@ -41,7 +41,10 @@ export function ThreadView({ parentMessage, replies, users, reactions, onClose, 
                 {new Date(message.createdAt).toLocaleString()}
               </span>
             </div>
-            <div>{message.content}</div>
+            <div 
+              className="prose prose-sm max-w-none dark:prose-invert"
+              dangerouslySetInnerHTML={{ __html: message.content }}
+            />
             {(message.attachments ?? []).map((attachment) => (
               <FileAttachment key={attachment.id} attachment={attachment} />
             ))}
@@ -85,7 +88,7 @@ export function ThreadView({ parentMessage, replies, users, reactions, onClose, 
           onSendMessage={handleReply}
           replyingTo={null}
           onCancelReply={() => {}}
-          placeholder="Reply in thread..."
+          placeholder="Reply in thread... (Shift + Enter to send)"
         />
       </div>
     </div>

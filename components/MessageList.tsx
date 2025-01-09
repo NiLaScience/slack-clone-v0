@@ -55,7 +55,10 @@ export function MessageList({ messages, users, reactions, onReply, onReact, onOp
                     {new Date(message.createdAt).toLocaleString()}
                   </span>
                 </div>
-                <div>{message.content}</div>
+                <div 
+                  className="prose prose-sm max-w-none dark:prose-invert"
+                  dangerouslySetInnerHTML={{ __html: message.content }}
+                />
                 {message.attachments && message.attachments.map((attachment) => (
                   <FileAttachment key={attachment.id} attachment={attachment} />
                 ))}
@@ -85,7 +88,7 @@ export function MessageList({ messages, users, reactions, onReply, onReact, onOp
                     {latestReply && (
                       <div className="text-sm">
                         <span className="font-semibold">{users.find(u => u.id === latestReply.senderId)?.name}: </span>
-                        {latestReply.content}
+                        <span dangerouslySetInnerHTML={{ __html: latestReply.content }} />
                       </div>
                     )}
                   </div>
