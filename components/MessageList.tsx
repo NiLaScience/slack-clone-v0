@@ -70,16 +70,7 @@ export function MessageList({ messages, users, reactions, onReply, onReact, onOp
                         {emoji} {count}
                       </button>
                     ))}
-                    <ReactionPicker
-                      onReact={(emoji) => onReact(message.id, emoji)}
-                      trigger={
-                        <button
-                          className="rounded-full px-2 py-0.5 text-sm hover:bg-gray-100"
-                        >
-                          😀
-                        </button>
-                      }
-                    />
+                    <ReactionPicker onReact={(emoji) => onReact(message.id, emoji)} />
                   </div>
                   <button
                     onClick={() => onOpenThread(message.id)}

@@ -80,11 +80,48 @@ export default function Page() {
     setSearchResults({ messages: [], files: [] })
   }
 
-  const handleSelectUser = (userId: string) => {
+  const handleSelectUser = async (userId: string) => {
     setSelectedUserId(userId)
     setSelectedChannelId(null)
     setOpenThreadId(null)
     setSearchResults({ messages: [], files: [] })
+
+    // Create DM channel if it doesn't exist
+    const currentUser = appData?.users[0]
+    if (!currentUser) return
+
+    const isSelfDM = userId === currentUser.id
+    const channelName = isSelfDM 
+      ? `${currentUser.name}-notes`
+      : `${currentUser.name}-${appData?.users.find(u => u.id === userId)?.name}`
+
+    try {
+      const response = await fetch('/api/channels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          name: channelName,
+          isPrivate: true,
+          isDM: true,
+          isSelfDM
+        }),
+      })
+      
+      if (!response.ok) {
+        const text = await response.text()
+        throw new Error(`Failed to create DM channel: ${response.status} ${text}`)
+      }
+      
+      // Refresh data
+      const dataResponse = await fetch('/api/getData')
+      if (!dataResponse.ok) {
+        throw new Error(`Failed to refresh data: ${dataResponse.status}`)
+      }
+      const newData = await dataResponse.json()
+      setAppData(newData)
+    } catch (error) {
+      console.error('Error creating DM channel:', error)
+    }
   }
 
   const handleCreateChannel = async (channelName: string) => {
@@ -118,10 +155,21 @@ export default function Page() {
   const handleSendMessage = async (content: string, attachments: File[]) => {
     if (!appData) return
     try {
-      const newChannelId = selectedChannelId || 
-        appData.channels.find(c =>
-          c.isPrivate && c.name.includes(appData.users.find(u => u.id === selectedUserId)?.name || '')
-        )?.id || ''
+      // Find the appropriate channel
+      let newChannelId = selectedChannelId
+      if (!newChannelId && selectedUserId) {
+        const currentUser = appData.users[0]
+        const isSelfDM = selectedUserId === currentUser.id
+        const channelName = isSelfDM 
+          ? `${currentUser.name}-notes`
+          : `${currentUser.name}-${appData.users.find(u => u.id === selectedUserId)?.name}`
+        
+        const dmChannel = appData.channels.find(c => c.name === channelName)
+        if (!dmChannel) {
+          throw new Error('DM channel not found. Please try again.')
+        }
+        newChannelId = dmChannel.id
+      }
 
       if (!newChannelId) {
         throw new Error('No channel selected and no DM channel found')
@@ -133,13 +181,23 @@ export default function Page() {
         attachmentsCount: attachments.length
       })
 
-      // Upload files first (in a real app, this would go to S3/etc)
+      // Upload files first
       const uploadedAttachments = await Promise.all(
-        attachments.map(async (file) => ({
-          filename: file.name,
-          fileUrl: URL.createObjectURL(file),
-          contentType: file.type,
-        }))
+        attachments.map(async (file) => {
+          const formData = new FormData()
+          formData.append('file', file)
+          
+          const uploadResponse = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          })
+          
+          if (!uploadResponse.ok) {
+            throw new Error(`Failed to upload file: ${uploadResponse.status}`)
+          }
+          
+          return uploadResponse.json()
+        })
       )
 
       const response = await fetch('/api/messages', {
@@ -179,7 +237,6 @@ export default function Page() {
       setMessages(newData.messages.filter((m: Message) => m.channelId === newChannelId))
     } catch (error) {
       console.error('Failed to send message:', error)
-      // TODO: Show error to user via toast or alert
       alert(error instanceof Error ? error.message : 'Failed to send message')
     }
   }
@@ -200,13 +257,23 @@ export default function Page() {
         attachmentsCount: attachments.length
       })
 
-      // Handle attachments similarly
+      // Upload files first
       const uploadedAttachments = await Promise.all(
-        attachments.map(async (file) => ({
-          filename: file.name,
-          fileUrl: URL.createObjectURL(file),
-          contentType: file.type,
-        }))
+        attachments.map(async (file) => {
+          const formData = new FormData()
+          formData.append('file', file)
+          
+          const uploadResponse = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          })
+          
+          if (!uploadResponse.ok) {
+            throw new Error(`Failed to upload file: ${uploadResponse.status}`)
+          }
+          
+          return uploadResponse.json()
+        })
       )
 
       const response = await fetch('/api/messages', {
@@ -459,7 +526,10 @@ export default function Page() {
                         </div>
                         <div className="flex flex-col">
                           <span>{selectedUser.name}</span>
-                          {selectedUser.status && (
+                          {selectedUser.id === appData.users[0].id && (
+                            <span className="text-sm text-gray-500">Note to self</span>
+                          )}
+                          {selectedUser.status && selectedUser.id !== appData.users[0].id && (
                             <span className="text-sm text-gray-500">
                               {selectedUser.status}
                             </span>
@@ -495,7 +565,9 @@ export default function Page() {
                           users={appData.users}
                           reactions={appData.reactions}
                           onClose={handleCloseThread}
-                          onReply={(content, parentMessageId) => handleSendReply(content, [], parentMessageId)}
+                          onReply={(content: string, attachments: File[], parentMessageId: string) => {
+                            void handleSendReply(content, attachments, parentMessageId);
+                          }}
                           onReact={handleReact}
                         />
                       ) : (

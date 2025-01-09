@@ -13,7 +13,7 @@ interface ThreadViewProps {
   users: User[];
   reactions: Reaction[];
   onClose: () => void;
-  onReply: (content: string, parentMessageId: string) => void;
+  onReply: (content: string, attachments: File[], parentMessageId: string) => void;
   onReact: (messageId: string, emoji: string) => void;
 }
 
@@ -22,8 +22,8 @@ export function ThreadView({ parentMessage, replies, users, reactions, onClose, 
     return <div className="p-4">No parent message found.</div>
   }
 
-  const handleReply = (content: string) => {
-    onReply(content, parentMessage.id);
+  const handleReply = (content: string, attachments: File[]) => {
+    onReply(content, attachments, parentMessage.id);
   };
 
   const renderMessage = (message: Message) => {
