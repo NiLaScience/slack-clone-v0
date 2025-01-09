@@ -1,33 +1,26 @@
+import { ClerkProvider } from '@clerk/nextjs'
+import './globals.css'
 import type { Metadata } from 'next'
-import { Geist, Azeret_Mono as Geist_Mono } from 'next/font/google'
+import { Inter } from 'next/font/google'
 
-const geistSans = Geist({
-  subsets: ['latin'],
-  variable: '--font-sans',
-})
-const geistMono = Geist_Mono({
-  subsets: ['latin'],
-  variable: '--font-mono',
-})
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'ChatGenius',
-  description: 'A Slack-like chat application',
+  title: 'Slack Clone',
+  description: 'A modern Slack clone built with Next.js',
 }
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
-      >
-        {children}
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en">
+        <body className={inter.className}>{children}</body>
+      </html>
+    </ClerkProvider>
   )
 }
 

@@ -11,45 +11,45 @@
       "static/chunks/main-app.js",
       "static/chunks/app/page.js"
     ],
+    "/sign-in/[[...sign-in]]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/sign-in/[[...sign-in]]/page.js"
+    ],
+    "/api/users/profile/create/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/users/profile/create/route.js"
+    ],
     "/api/getData/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/getData/route.js"
     ],
-    "/api/channels/route": [
+    "/api/channels/join/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/channels/route.js"
-    ],
-    "/api/messages/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/messages/route.js"
-    ],
-    "/api/messages/[messageId]/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/messages/[messageId]/route.js"
-    ],
-    "/api/reactions/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/reactions/route.js"
-    ],
-    "/api/users/avatar/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/users/avatar/route.js"
+      "static/chunks/app/api/channels/join/route.js"
     ],
     "/api/users/name/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/users/name/route.js"
     ],
-    "/api/users/status/route": [
+    "/api/users/avatar/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/users/status/route.js"
+      "static/chunks/app/api/users/avatar/route.js"
+    ],
+    "/api/channels/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/channels/route.js"
+    ],
+    "/api/messages/[messageId]/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/messages/[messageId]/route.js"
     ]
   }
 }

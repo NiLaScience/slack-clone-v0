@@ -55,8 +55,9 @@ model Message {
   senderId        String
   content         String
   parentMessageId String? // For threaded replies
-  createdAt       DateTime
-  updatedAt       DateTime
+  isDeleted       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   channel     Channel      @relation(fields: [channelId], references: [id])
   sender      User         @relation(fields: [senderId], references: [id])

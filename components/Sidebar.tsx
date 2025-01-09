@@ -1,16 +1,18 @@
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Hash, User, Users, Menu } from 'lucide-react'
+import { Hash, User, Users, Menu, LogOut } from 'lucide-react'
 import { Channel, User as UserType } from "@/types/dataStructures"
 import { CreateChannelDialog } from "./CreateChannelDialog"
 import { UserProfileStatus } from "./UserProfileStatus"
 import { CircleStatus } from "@/components/ui/circle-status"
+import { SignOutButton } from "@clerk/nextjs"
 
 interface SidebarProps {
   isOpen: boolean;
   channels: Channel[];
   users: UserType[];
+  currentUserId: string;
   onSelectChannel: (channelId: string) => void;
   onSelectUser: (userId: string) => void;
   onCreateChannel: (name: string, isPrivate: boolean) => void;
@@ -19,7 +21,21 @@ interface SidebarProps {
   onSetUserName: (newName: string) => void;
 }
 
-export function Sidebar({ isOpen, channels, users, onSelectChannel, onSelectUser, onCreateChannel, onSetUserStatus, onSetUserAvatar, onSetUserName }: SidebarProps) {
+export function Sidebar({ 
+  isOpen, 
+  channels, 
+  users, 
+  currentUserId,
+  onSelectChannel, 
+  onSelectUser, 
+  onCreateChannel, 
+  onSetUserStatus, 
+  onSetUserAvatar,
+  onSetUserName 
+}: SidebarProps) {
+  const currentUser = users.find(user => user.id === currentUserId)
+  if (!currentUser) return null
+
   const SidebarContent = () => (
     <ScrollArea className="h-full py-6 pl-4 pr-6 flex flex-col bg-gray-800 text-white">
       <h2 className="mb-4 text-lg font-semibold">Channels</h2>
@@ -59,13 +75,19 @@ export function Sidebar({ isOpen, channels, users, onSelectChannel, onSelectUser
           </Button>
         ))}
       </div>
-      <div className="mt-auto p-2 border-t">
+      <div className="mt-auto space-y-4 border-t pt-4">
         <UserProfileStatus
-          user={users[0]}
+          user={currentUser}
           onSetUserStatus={onSetUserStatus}
           onSetUserAvatar={onSetUserAvatar}
           onSetUserName={onSetUserName}
         />
+        <SignOutButton>
+          <Button variant="ghost" className="w-full justify-start hover:bg-gray-700">
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign Out
+          </Button>
+        </SignOutButton>
       </div>
     </ScrollArea>
   )
@@ -84,7 +106,7 @@ export function Sidebar({ isOpen, channels, users, onSelectChannel, onSelectUser
             <Menu className="h-6 w-6" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="w-64 p-0">
+        <SheetContent side="left" className="p-0">
           <SidebarContent />
         </SheetContent>
       </Sheet>

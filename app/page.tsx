@@ -1,594 +1,464 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
+import { redirect } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { MessageList } from '@/components/MessageList'
-import { MessageInput } from '@/components/MessageInput'
 import { ThreadView } from '@/components/ThreadView'
-import { SearchBar } from '@/components/SearchBar'
-import { SearchResults } from '@/components/SearchResults'
-import { User, Channel, ChannelMembership, Message, Reaction, Attachment } from '@/types/dataStructures'
-import { CircleStatus } from '@/components/ui/circle-status'
-import { Hash } from 'lucide-react'
+import { Message, Channel, User, Reaction } from '@/types/dataStructures'
 
-export default function Page() {
-  const [appData, setAppData] = useState<{
-    users: User[]
-    channels: Channel[]
-    channelMemberships: ChannelMembership[]
+export default function Home() {
+  const { userId } = useAuth()
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null)
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null)
+  const [data, setData] = useState<{
     messages: Message[]
+    channels: Channel[]
+    users: User[]
     reactions: Reaction[]
   } | null>(null)
-  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null)
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null)
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
-  const [messages, setMessages] = useState<Message[]>([])
-  const [openThreadId, setOpenThreadId] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<{
-    messages: { message: Message; channel: Channel }[];
-    files: { attachment: Attachment; message: Message; channel: Channel }[];
-  }>({ messages: [], files: [] })
 
-  // Fetch initial data
   useEffect(() => {
-    fetch('/api/getData')
-      .then(async res => {
-        if (!res.ok) {
-          const text = await res.text()
-          throw new Error(`Failed to fetch data: ${res.status} ${text}`)
-        }
-        return res.json()
-      })
-      .then(data => {
-        setAppData(data)
-      })
-      .catch(err => {
-        console.error('Failed to fetch data:', err)
-      })
-  }, [])
-
-  // Keep selected channel/user in sync
-  useEffect(() => {
-    if (!appData) return
-    const newSelectedChannel = appData.channels.find(c => c.id === selectedChannelId) || null
-    const newSelectedUser = appData.users.find(u => u.id === selectedUserId) || null
-    setSelectedChannel(newSelectedChannel)
-    setSelectedUser(newSelectedUser)
-  }, [selectedChannelId, selectedUserId, appData])
-
-  // Update messages when selection changes
-  useEffect(() => {
-    if (!appData) return
-    if (selectedChannelId) {
-      setMessages(appData.messages.filter(m => m.channelId === selectedChannelId))
-    } else if (selectedUserId) {
-      const dmChannel = appData.channels.find(c => 
-        c.isPrivate && c.name.includes(appData.users.find(u => u.id === selectedUserId)?.name || '')
-      )
-      setMessages(dmChannel ? appData.messages.filter(m => m.channelId === dmChannel.id) : [])
-    } else {
-      setMessages([])
-    }
-  }, [selectedChannelId, selectedUserId, appData])
-
-  const handleSelectChannel = (channelId: string) => {
-    setSelectedChannelId(channelId)
-    setSelectedUserId(null)
-    setOpenThreadId(null)
-    setSearchResults({ messages: [], files: [] })
-  }
-
-  const handleSelectUser = async (userId: string) => {
-    setSelectedUserId(userId)
-    setSelectedChannelId(null)
-    setOpenThreadId(null)
-    setSearchResults({ messages: [], files: [] })
-
-    // Create DM channel if it doesn't exist
-    const currentUser = appData?.users[0]
-    if (!currentUser) return
-
-    const isSelfDM = userId === currentUser.id
-    const channelName = isSelfDM 
-      ? `${currentUser.name}-notes`
-      : `${currentUser.name}-${appData?.users.find(u => u.id === userId)?.name}`
-
-    try {
-      const response = await fetch('/api/channels', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          name: channelName,
-          isPrivate: true,
-          isDM: true,
-          isSelfDM
-        }),
-      })
-      
-      if (!response.ok) {
-        const text = await response.text()
-        throw new Error(`Failed to create DM channel: ${response.status} ${text}`)
-      }
-      
-      // Refresh data
-      const dataResponse = await fetch('/api/getData')
-      if (!dataResponse.ok) {
-        throw new Error(`Failed to refresh data: ${dataResponse.status}`)
-      }
-      const newData = await dataResponse.json()
-      setAppData(newData)
-    } catch (error) {
-      console.error('Error creating DM channel:', error)
-    }
-  }
-
-  const handleCreateChannel = async (channelName: string) => {
-    try {
-      const response = await fetch('/api/channels', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: channelName }),
-      })
-      
-      if (!response.ok) {
-        const text = await response.text()
-        throw new Error(`Failed to create channel: ${response.status} ${text}`)
-      }
-      
-      await response.json()
-      
-      // Refresh data
-      const dataResponse = await fetch('/api/getData')
-      if (!dataResponse.ok) {
-        const text = await dataResponse.text()
-        throw new Error(`Failed to refresh data: ${dataResponse.status} ${text}`)
-      }
-      const data = await dataResponse.json()
-      setAppData(data)
-    } catch (error) {
-      console.error('Error creating channel:', error)
-    }
-  }
-
-  const handleSendMessage = async (content: string, attachments: File[]) => {
-    if (!appData) return
-    try {
-      // Find the appropriate channel
-      let newChannelId = selectedChannelId
-      if (!newChannelId && selectedUserId) {
-        const currentUser = appData.users[0]
-        const isSelfDM = selectedUserId === currentUser.id
-        const channelName = isSelfDM 
-          ? `${currentUser.name}-notes`
-          : `${currentUser.name}-${appData.users.find(u => u.id === selectedUserId)?.name}`
-        
-        const dmChannel = appData.channels.find(c => c.name === channelName)
-        if (!dmChannel) {
-          throw new Error('DM channel not found. Please try again.')
-        }
-        newChannelId = dmChannel.id
-      }
-
-      if (!newChannelId) {
-        throw new Error('No channel selected and no DM channel found')
-      }
-
-      console.log('Sending message:', {
-        content,
-        channelId: newChannelId,
-        attachmentsCount: attachments.length
-      })
-
-      // Upload files first
-      const uploadedAttachments = await Promise.all(
-        attachments.map(async (file) => {
-          const formData = new FormData()
-          formData.append('file', file)
-          
-          const uploadResponse = await fetch('/api/upload', {
-            method: 'POST',
-            body: formData,
-          })
-          
-          if (!uploadResponse.ok) {
-            throw new Error(`Failed to upload file: ${uploadResponse.status}`)
-          }
-          
-          return uploadResponse.json()
-        })
-      )
-
-      const response = await fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content,
-          channelId: newChannelId,
-          attachments: uploadedAttachments,
-        }),
-      })
-
-      const responseData = await response.json().catch(() => null)
-      console.log('Message API response:', {
-        status: response.status,
-        ok: response.ok,
-        data: responseData
-      })
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to send message: ${response.status} ${
-            responseData?.details || responseData?.error || 'Unknown error'
-          }`
-        )
-      }
-
-      // Refresh data
-      console.log('Refreshing data after message send')
-      const dataResponse = await fetch('/api/getData')
-      if (!dataResponse.ok) {
-        const text = await dataResponse.text()
-        throw new Error(`Failed to refresh data: ${dataResponse.status} ${text}`)
-      }
-      const newData = await dataResponse.json()
-      setAppData(newData)
-      setMessages(newData.messages.filter((m: Message) => m.channelId === newChannelId))
-    } catch (error) {
-      console.error('Failed to send message:', error)
-      alert(error instanceof Error ? error.message : 'Failed to send message')
-    }
-  }
-
-  const handleSendReply = async (content: string, attachments: File[], parentMessageId: string) => {
-    if (!appData) return
-    const parentMsg = appData.messages.find(m => m.id === parentMessageId)
-    if (!parentMsg) {
-      console.error('Parent message not found:', parentMessageId)
+    if (!userId) {
+      redirect('/sign-in')
       return
     }
 
-    try {
-      console.log('Sending reply:', {
-        content,
-        channelId: parentMsg.channelId,
-        parentMessageId,
-        attachmentsCount: attachments.length
-      })
-
-      // Upload files first
-      const uploadedAttachments = await Promise.all(
-        attachments.map(async (file) => {
-          const formData = new FormData()
-          formData.append('file', file)
-          
-          const uploadResponse = await fetch('/api/upload', {
+    const initializeUser = async () => {
+      try {
+        // Check if user exists
+        const checkRes = await fetch('/api/users/profile/create');
+        
+        if (checkRes.status === 404) {
+          // User doesn't exist, create new user
+          const createRes = await fetch('/api/users/profile/create', {
             method: 'POST',
-            body: formData,
-          })
+            headers: { 'Content-Type': 'application/json' }
+          });
           
-          if (!uploadResponse.ok) {
-            throw new Error(`Failed to upload file: ${uploadResponse.status}`)
+          if (!createRes.ok) {
+            throw new Error('Failed to create user profile');
           }
-          
-          return uploadResponse.json()
-        })
-      )
+        } else if (!checkRes.ok) {
+          throw new Error('Failed to check user profile');
+        }
 
-      const response = await fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content,
-          channelId: parentMsg.channelId,
-          parentMessageId,
-          attachments: uploadedAttachments,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null)
-        throw new Error(
-          `Failed to send reply: ${response.status} ${
-            errorData?.details || errorData?.error || 'Unknown error'
-          }`
-        )
+        // Fetch initial data
+        const dataRes = await fetch('/api/getData');
+        if (!dataRes.ok) {
+          throw new Error('Failed to fetch initial data');
+        }
+        
+        const initialData = await dataRes.json();
+        setData(initialData);
+      } catch (error) {
+        console.error('Error in user initialization:', error);
       }
+    };
 
-      // Refresh data
-      console.log('Refreshing data after reply')
-      const dataResponse = await fetch('/api/getData')
-      if (!dataResponse.ok) {
-        const text = await dataResponse.text()
-        throw new Error(`Failed to refresh data: ${dataResponse.status} ${text}`)
-      }
-      const newData = await dataResponse.json()
-      setAppData(newData)
-      setMessages(newData.messages.filter((m: Message) => m.channelId === parentMsg.channelId))
-    } catch (error) {
-      console.error('Failed to send reply:', error)
-      alert(error instanceof Error ? error.message : 'Failed to send reply')
-    }
-  }
+    initializeUser();
+  }, [userId])
 
-  const handleReact = async (messageId: string, emoji: string) => {
-    if (!appData) return
+  if (!data || !userId) return null
+
+  const handleSelectChannel = async (channelId: string) => {
+    // Try to join the channel first
+    await fetch('/api/channels/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channelId })
+    })
     
-    const existingReaction = appData.reactions.find(
-      r => r.messageId === messageId && r.userId === appData.users[0].id && r.emoji === emoji
-    )
+    setSelectedChannelId(channelId)
+    setSelectedThreadId(null)
     
-    if (existingReaction) {
-      // Delete reaction
-      await fetch('/api/reactions', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: existingReaction.id }),
-      })
-    } else {
-      // Create reaction
-      await fetch('/api/reactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messageId, emoji }),
-      })
-    }
-    
-    // Refresh data instead of updating local state
+    // Refresh data to get updated channel memberships
     const newData = await fetch('/api/getData').then(res => res.json())
-    setAppData(newData)
+    setData(newData)
   }
 
-  const handleOpenThread = async (messageId: string) => {
-    // First verify the message exists in DB
-    try {
-      const response = await fetch(`/api/messages/${messageId}`)
-      if (!response.ok) {
-        console.error('Failed to fetch message:', messageId)
-        return
-      }
-      
-      // Refresh data to ensure we have latest state
-      const dataResponse = await fetch('/api/getData')
-      if (!dataResponse.ok) {
-        throw new Error(`Failed to refresh data: ${dataResponse.status}`)
-      }
-      const newData = await dataResponse.json()
-      setAppData(newData)
-      
-      // Only open thread if message exists in fresh data
-      const message = newData.messages.find((m: Message) => m.id === messageId)
-      if (message) {
-        setOpenThreadId(messageId)
-        setSelectedChannelId(message.channelId)
-      }
-    } catch (error) {
-      console.error('Failed to open thread:', error)
-    }
+  const handleOpenThread = (messageId: string) => {
+    setSelectedThreadId(messageId)
   }
 
   const handleCloseThread = () => {
-    setOpenThreadId(null)
+    setSelectedThreadId(null)
   }
 
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query)
-    if (!appData) return
-    
+  const handleReact = async (messageId: string, emoji: string) => {
+    await fetch('/api/reactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageId, emoji })
+    })
+    const newData = await fetch('/api/getData').then(res => res.json())
+    setData(newData)
+  }
+
+  const handleEditMessage = async (messageId: string, newContent: string) => {
+    await fetch(`/api/messages/${messageId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: newContent })
+    })
+    const newData = await fetch('/api/getData').then(res => res.json())
+    setData(newData)
+  }
+
+  const handleDeleteMessage = async (messageId: string) => {
     try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`)
-      if (!response.ok) {
-        const text = await response.text()
-        throw new Error(`Search failed: ${response.status} ${text}`)
-      }
-      const results = await response.json()
-      setSearchResults(results)
-    } catch (error) {
-      console.error('Search failed:', error)
-      setSearchResults({ messages: [], files: [] })
-    }
-  }
+      console.log('Attempting to delete message:', messageId);
+      const response = await fetch(`/api/messages/${messageId}`, {
+        method: 'DELETE'
+      });
 
-  const handleSelectSearchResult = (channelId: string, messageId: string) => {
-    setSelectedChannelId(channelId)
-    setSelectedUserId(null)
-    setOpenThreadId(messageId)
-    setSearchQuery('')
-    setSearchResults({ messages: [], files: [] })
+      console.log('Delete response status:', response.status);
+      const text = await response.text();
+      console.log('Delete response text:', text);
+
+      let data;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (e) {
+        console.error('Failed to parse response:', e);
+        return;
+      }
+      
+      if (!response.ok) {
+        console.error('Failed to delete message:', data.error || 'Unknown error');
+        return;
+      }
+
+      const newData = await fetch('/api/getData').then(res => res.json());
+      setData(newData);
+    } catch (error) {
+      console.error('Error deleting message:', error);
+    }
   }
 
   const handleSetUserStatus = async (newStatus: string) => {
-    try {
-      const response = await fetch('/api/users/status', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      })
-      
-      if (!response.ok) {
-        const text = await response.text()
-        throw new Error(`Failed to update status: ${response.status} ${text}`)
-      }
-      
-      await response.json()
-      
-      // Refresh data
-      const dataResponse = await fetch('/api/getData')
-      if (!dataResponse.ok) {
-        const text = await dataResponse.text()
-        throw new Error(`Failed to refresh data: ${dataResponse.status} ${text}`)
-      }
-      const newData = await dataResponse.json()
-      setAppData(newData)
-    } catch (error) {
-      console.error('Failed to update status:', error)
-    }
+    await fetch('/api/users/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus })
+    })
+    const newData = await fetch('/api/getData').then(res => res.json())
+    setData(newData)
   }
 
   const handleSetUserAvatar = async (newEmoji: string) => {
-    try {
-      const response = await fetch('/api/users/avatar', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ avatar: newEmoji }),
-      })
-      
-      if (!response.ok) {
-        const text = await response.text()
-        throw new Error(`Failed to update avatar: ${response.status} ${text}`)
-      }
-      
-      await response.json()
-      
-      // Refresh data
-      const dataResponse = await fetch('/api/getData')
-      if (!dataResponse.ok) {
-        const text = await dataResponse.text()
-        throw new Error(`Failed to refresh data: ${dataResponse.status} ${text}`)
-      }
-      const newData = await dataResponse.json()
-      setAppData(newData)
-    } catch (error) {
-      console.error('Failed to update avatar:', error)
-    }
+    await fetch('/api/users/avatar', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ avatar: newEmoji })
+    })
+    const newData = await fetch('/api/getData').then(res => res.json())
+    setData(newData)
   }
 
   const handleSetUserName = async (newName: string) => {
+    await fetch('/api/users/name', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName })
+    })
+    const newData = await fetch('/api/getData').then(res => res.json())
+    setData(newData)
+  }
+
+  const handleSendMessage = async (content: string, attachments: File[] = []) => {
+    if (!selectedChannelId) return
+
+    // Upload files first
+    const uploadedAttachments = await Promise.all(
+      attachments.map(async (file) => {
+        const formData = new FormData()
+        formData.append('file', file)
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        })
+        return response.json()
+      })
+    )
+
+    // Create message with uploaded file URLs
+    await fetch('/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        content, 
+        channelId: selectedChannelId,
+        attachments: uploadedAttachments
+      })
+    })
+    const newData = await fetch('/api/getData').then(res => res.json())
+    setData(newData)
+  }
+
+  const handleCreateChannel = async (name: string, isPrivate: boolean) => {
+    await fetch('/api/channels', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, isPrivate })
+    })
+    const newData = await fetch('/api/getData').then(res => res.json())
+    setData(newData)
+  }
+
+  const handleSelectUser = async (targetUserId: string) => {
     try {
-      const response = await fetch('/api/users/name', {
-        method: 'PATCH',
+      console.log('Starting DM channel creation with:', { targetUserId, currentUserId: userId })
+      
+      // Create or get DM channel
+      const userIds = targetUserId === userId ? [userId] : [userId, targetUserId]
+      console.log('Using userIds:', userIds)
+      
+      const res = await fetch('/api/channels', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName }),
+        body: JSON.stringify({
+          isDM: true,
+          userIds
+        })
+      }).catch(e => {
+        console.error('Fetch failed:', e)
+        return null
+      })
+
+      if (!res) {
+        console.error('Fetch returned null')
+        return
+      }
+
+      console.log('Channel creation response:', {
+        status: res.status,
+        statusText: res.statusText,
+        headers: Object.fromEntries(res.headers.entries())
       })
       
-      if (!response.ok) {
-        const text = await response.text()
-        throw new Error(`Failed to update name: ${response.status} ${text}`)
-      }
+      const responseText = await res.text().catch(e => {
+        console.error('Failed to get response text:', e)
+        return null
+      })
       
-      await response.json()
+      if (responseText === null) {
+        console.error('Response text is null')
+        return
+      }
+
+      console.log('Channel creation raw response:', responseText)
+
+      if (!res.ok) {
+        console.error('Response not ok:', {
+          status: res.status,
+          statusText: res.statusText,
+          body: responseText
+        })
+        return
+      }
+
+      let channel
+      try {
+        channel = JSON.parse(responseText)
+        console.log('Parsed channel:', channel)
+      } catch (e) {
+        console.error('Failed to parse response as JSON:', e)
+        console.error('Raw response was:', responseText)
+        return
+      }
+
+      // Join channel if not already a member
+      console.log('Attempting to join channel:', channel.id)
+      const joinRes = await fetch('/api/channels/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channelId: channel.id,
+          userId: userId
+        })
+      }).catch(e => {
+        console.error('Join fetch failed:', e)
+        return null
+      })
+
+      if (!joinRes) {
+        console.error('Join fetch returned null')
+        return
+      }
+
+      console.log('Join response:', {
+        status: joinRes.status,
+        statusText: joinRes.statusText,
+        headers: Object.fromEntries(joinRes.headers.entries())
+      })
+
+      const joinResponseText = await joinRes.text().catch(e => {
+        console.error('Failed to get join response text:', e)
+        return null
+      })
+
+      if (joinResponseText === null) {
+        console.error('Join response text is null')
+        return
+      }
+
+      console.log('Join raw response:', joinResponseText)
+
+      if (!joinRes.ok) {
+        console.error('Join response not ok:', {
+          status: joinRes.status,
+          statusText: joinRes.statusText,
+          body: joinResponseText
+        })
+        return
+      }
+
+      // Update selected channel
+      console.log('Setting selected channel:', channel.id)
+      setSelectedChannelId(channel.id)
+      setSelectedThreadId(null)
       
       // Refresh data
-      const dataResponse = await fetch('/api/getData')
-      if (!dataResponse.ok) {
-        const text = await dataResponse.text()
-        throw new Error(`Failed to refresh data: ${dataResponse.status} ${text}`)
+      console.log('Refreshing data')
+      const dataRes = await fetch('/api/getData').catch(e => {
+        console.error('Data fetch failed:', e)
+        return null
+      })
+
+      if (!dataRes) {
+        console.error('Data fetch returned null')
+        return
       }
-      const newData = await dataResponse.json()
-      setAppData(newData)
+
+      console.log('Data refresh response:', {
+        status: dataRes.status,
+        statusText: dataRes.statusText
+      })
+      
+      if (!dataRes.ok) {
+        const errorText = await dataRes.text().catch(e => {
+          console.error('Failed to get error text:', e)
+          return 'Failed to get error details'
+        })
+        console.error('Error refreshing data:', errorText)
+        return
+      }
+      
+      const newData = await dataRes.json().catch(e => {
+        console.error('Failed to parse data response:', e)
+        return null
+      })
+
+      if (!newData) {
+        console.error('Failed to get new data')
+        return
+      }
+
+      console.log('Got new data, updating state')
+      setData(newData)
     } catch (error) {
-      console.error('Failed to update name:', error)
+      console.error('Error in handleSelectUser:', error)
+      // Log the full error details
+      if (error instanceof Error) {
+        console.error({
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+          cause: error.cause
+        })
+      } else {
+        console.error('Non-Error object thrown:', error)
+      }
     }
   }
 
+  const selectedChannel = data.channels.find(c => c.id === selectedChannelId)
+  const channelMessages = selectedChannel 
+    ? data.messages.filter(m => m.channelId === selectedChannel.id)
+    : []
+
+  const selectedThread = selectedThreadId 
+    ? data.messages.find(m => m.id === selectedThreadId)
+    : null
+  const threadReplies = selectedThread
+    ? data.messages.filter(m => m.parentMessageId === selectedThread.id)
+    : []
+
   return (
-    !appData ? (
-      <div>Loading data...</div>
-    ) : (
-      <div className="flex flex-col h-screen bg-gray-50 text-slate-700">
-        <div className="flex-none p-4 border-b border-gray-700 bg-gray-800 text-white">
-          <SearchBar onSearch={handleSearch} />
-        </div>
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar
-            isOpen={true}
-            channels={appData.channels.filter(ch => !ch.isPrivate)}
-            users={appData.users}
-            onSelectChannel={handleSelectChannel}
-            onSelectUser={handleSelectUser}
-            onCreateChannel={handleCreateChannel}
-            onSetUserStatus={handleSetUserStatus}
-            onSetUserAvatar={handleSetUserAvatar}
-            onSetUserName={handleSetUserName}
+    <main className="flex h-screen">
+      <Sidebar 
+        isOpen={true}
+        channels={data.channels}
+        users={data.users}
+        currentUserId={userId}
+        onSelectChannel={handleSelectChannel}
+        onSelectUser={handleSelectUser}
+        onCreateChannel={handleCreateChannel}
+        onSetUserStatus={handleSetUserStatus}
+        onSetUserAvatar={handleSetUserAvatar}
+        onSetUserName={handleSetUserName}
+      />
+      <div className="flex-1 flex">
+        <MessageList 
+          messages={channelMessages}
+          users={data.users}
+          reactions={data.reactions}
+          onReply={handleOpenThread}
+          onReact={handleReact}
+          onOpenThread={handleOpenThread}
+          onEditMessage={handleEditMessage}
+          onDeleteMessage={handleDeleteMessage}
+          currentUserId={userId}
+          onSendMessage={handleSendMessage}
+          channelName={selectedChannel?.name}
+          channelId={selectedChannel?.id}
+          isDM={selectedChannel?.isDM}
+        />
+        {selectedThread && (
+          <ThreadView 
+            parentMessage={selectedThread}
+            replies={threadReplies}
+            users={data.users}
+            reactions={data.reactions}
+            onClose={handleCloseThread}
+            onReply={async (content, attachments, parentId) => {
+              // Upload files first
+              const uploadedAttachments = await Promise.all(
+                attachments.map(async (file) => {
+                  const formData = new FormData()
+                  formData.append('file', file)
+                  const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                  })
+                  return response.json()
+                })
+              )
+
+              // Create message with uploaded file URLs
+              await fetch('/api/messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  content, 
+                  channelId: selectedChannel!.id,
+                  parentMessageId: parentId,
+                  attachments: uploadedAttachments
+                })
+              })
+              const newData = await fetch('/api/getData').then(res => res.json())
+              setData(newData)
+            }}
+            onReact={handleReact}
+            onEditMessage={handleEditMessage}
+            onDeleteMessage={handleDeleteMessage}
+            currentUserId={userId}
           />
-          <div className="flex-1 flex flex-col">
-            {searchQuery.trim().length > 0 ? (
-              <SearchResults
-                results={searchResults}
-                users={appData.users}
-                onSelectResult={handleSelectSearchResult}
-              />
-            ) : selectedChannel || selectedUser ? (
-              <>
-                <div className="p-4 border-b bg-white">
-                  <h2 className="text-xl font-semibold">
-                    {selectedChannel ? (
-                      <div className="flex items-center gap-2">
-                        <Hash className="h-5 w-5" />
-                        {selectedChannel.name}
-                      </div>
-                    ) : selectedUser && (
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <span className="text-2xl">{selectedUser.avatar}</span>
-                          <CircleStatus isOnline={selectedUser.isOnline} />
-                        </div>
-                        <div className="flex flex-col">
-                          <span>{selectedUser.name}</span>
-                          {selectedUser.id === appData.users[0].id && (
-                            <span className="text-sm text-gray-500">Note to self</span>
-                          )}
-                          {selectedUser.status && selectedUser.id !== appData.users[0].id && (
-                            <span className="text-sm text-gray-500">
-                              {selectedUser.status}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </h2>
-                </div>
-                <div className="flex-1 flex overflow-hidden">
-                  <div className={`flex-1 flex flex-col ${openThreadId ? 'md:w-2/3' : 'w-full'} bg-white border-l border-r`}>
-                    <MessageList
-                      messages={messages || []}
-                      users={appData.users}
-                      reactions={appData.reactions}
-                      onReply={handleOpenThread}
-                      onReact={handleReact}
-                      onOpenThread={handleOpenThread}
-                    />
-                    <MessageInput
-                      onSendMessage={handleSendMessage}
-                      replyingTo={null}
-                      onCancelReply={() => {}}
-                      placeholder="Send a message to the channel..."
-                    />
-                  </div>
-                  {openThreadId && (
-                    <div className="hidden md:flex md:w-1/3 border-l">
-                      {messages.some(m => m.id === openThreadId) ? (
-                        <ThreadView
-                          parentMessage={messages.find((m) => m.id === openThreadId)!}
-                          replies={messages.filter((m) => m.parentMessageId === openThreadId)}
-                          users={appData.users}
-                          reactions={appData.reactions}
-                          onClose={handleCloseThread}
-                          onReply={(content: string, attachments: File[], parentMessageId: string) => {
-                            void handleSendReply(content, attachments, parentMessageId);
-                          }}
-                          onReact={handleReact}
-                        />
-                      ) : (
-                        <div className="p-4">Loading thread...</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <h2 className="text-2xl font-bold mb-4">Welcome to ChatGenius</h2>
-                  <p>Select a channel or user to start messaging, or use the search bar above.</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        )}
       </div>
-    )
+    </main>
   )
 }
 

@@ -17,12 +17,13 @@ interface MessageInputProps {
   replyingTo: string | null;
   onCancelReply: () => void;
   placeholder?: string;
+  initialContent?: string;
 }
 
-export function MessageInput({ onSendMessage, replyingTo, onCancelReply, placeholder = "Type a message..." }: MessageInputProps) {
+export function MessageInput({ onSendMessage, replyingTo, onCancelReply, placeholder = "Type a message...", initialContent = "" }: MessageInputProps) {
   const [attachments, setAttachments] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState(initialContent);
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkText, setLinkText] = useState('');
@@ -57,7 +58,7 @@ export function MessageInput({ onSendMessage, replyingTo, onCancelReply, placeho
         placeholder,
       }),
     ],
-    content,
+    content: initialContent,
     onUpdate: ({ editor }) => {
       setContent(editor.getHTML());
     },

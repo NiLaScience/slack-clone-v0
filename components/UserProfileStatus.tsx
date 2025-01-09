@@ -69,16 +69,18 @@ export function UserProfileStatus({ user, onSetUserStatus, onSetUserAvatar, onSe
     }
   }
 
-  const handleNameConfirm = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleNameConfirm = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      onSetUserName(tempName)
-      setEditName(false)
+      await onSetUserName(tempName);
+      setEditName(false);
     }
   }
 
-  const handleNameBlur = () => {
-    onSetUserName(tempName.trim())
-    setEditName(false)
+  const handleNameBlur = async () => {
+    if (tempName.trim() !== user.name) {
+      await onSetUserName(tempName.trim());
+    }
+    setEditName(false);
   }
 
   return (
@@ -94,7 +96,8 @@ export function UserProfileStatus({ user, onSetUserStatus, onSetUserAvatar, onSe
               <CircleStatus isOnline={user.isOnline} />
             </div>
             <span className="text-sm">
-              {user.status || '(Set status)'}
+              {editName ? tempName : user.name}
+              {user.status ? ` - ${user.status}` : ' (Set status)'}
             </span>
           </button>
         </PopoverTrigger>
