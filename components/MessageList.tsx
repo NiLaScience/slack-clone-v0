@@ -4,6 +4,7 @@ import { ReactionPicker } from "./ReactionPicker"
 import { FileAttachment } from "./FileAttachment"
 import { CircleStatus } from "@/components/ui/circle-status"
 import { MoreHorizontal, Pencil, Trash2, Hash, Users } from "lucide-react"
+import { getChannelDisplayName } from "@/lib/utils"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,35 +63,32 @@ export function MessageList({
       }, {} as Record<string, number>);
   };
 
-  const handleEditSubmit = (messageId: string, content: string) => {
-    fetch("/api/channels", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messageId, newText: content }),
-    })
-    .then(async (res) => {
+  const handleEditSubmit = async (messageId: string, content: string) => {
+    try {
+      const res = await fetch(`/api/messages/${messageId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+      
+      const data = await res.json();
+      
       if (!res.ok) {
-        const errorData = await res.json();
-        console.error("Failed to update message:", errorData);
+        console.error("Failed to update message:", data.error || "Unknown error");
         return;
       }
-      onEditMessage(messageId, content);
-    })
-    .finally(() => {
+      
+      if (data.success) {
+        onEditMessage(messageId, content);
+      }
+    } catch (error) {
+      console.error("Error updating message:", error);
+    } finally {
       setEditingMessageId(null);
-    });
+    }
   };
 
   const topLevelMessages = messages.filter((m) => !m.parentMessageId);
-
-  const handleEdit = async (messageId: string, newText: string) => {
-    await fetch("/api/channels", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messageId, newText }),
-    });
-    // ...
-  };
 
   const handleDelete = async (messageId: string) => {
     console.log('Starting delete for messageId:', messageId);
@@ -127,7 +125,13 @@ export function MessageList({
             ) : (
               <Hash className="h-5 w-5" />
             )}
-            <h2 className="text-xl font-semibold">{channelName}</h2>
+            <h2 className="text-xl font-semibold">
+              {isDM ? getChannelDisplayName({ 
+                name: channelName, 
+                isDM, 
+                memberIds: messages.map(m => m.senderId).filter((id, i, arr) => arr.indexOf(id) === i)
+              }, currentUserId, users) : channelName}
+            </h2>
           </div>
         </div>
       )}

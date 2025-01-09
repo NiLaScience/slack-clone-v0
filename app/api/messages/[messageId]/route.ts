@@ -45,44 +45,51 @@ export async function PATCH(
   try {
     const { userId } = getAuth(req);
     if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const { content } = await req.json();
-    const messageId = params.messageId;
+    const body = await req.json();
+    const { content } = body;
+    
+    if (!content) {
+      return NextResponse.json({ success: false, error: "Content is required" }, { status: 400 });
+    }
 
     // Get the existing message
     const existingMessage = await prisma.message.findUnique({
-      where: { id: messageId }
+      where: { id: params.messageId }
     });
 
     if (!existingMessage) {
-      return new NextResponse("Message not found", { status: 404 });
+      return NextResponse.json({ success: false, error: "Message not found" }, { status: 404 });
     }
 
     if (existingMessage.senderId !== userId) {
-      return new NextResponse("Forbidden", { status: 403 });
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
     }
 
     // Update the message
     const updatedMessage = await prisma.message.update({
-      where: { id: messageId },
+      where: { id: params.messageId },
       data: {
         content,
-        editedAt: new Date().toISOString(),
-        editHistory: {
-          push: {
-            content: existingMessage.content,
-            editedAt: new Date().toISOString()
-          }
-        }
+        editedAt: new Date()
       }
     });
 
-    return NextResponse.json(updatedMessage);
+    return NextResponse.json({ 
+      success: true, 
+      message: updatedMessage 
+    });
+    
   } catch (error) {
-    console.error("[MESSAGE_EDIT]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    console.error(`[MESSAGE_EDIT] Error editing message ${params.messageId}:`, error);
+    
+    return NextResponse.json({ 
+      success: false,
+      error: "Internal Error", 
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
 
@@ -135,8 +142,7 @@ export async function DELETE(
       where: { id: messageId },
       data: { 
         isDeleted: true,
-        content: '',  // Clear the content for privacy
-        updatedAt: new Date()
+        content: ''  // Clear the content for privacy
       }
     });
 

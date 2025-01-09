@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { MessageList } from '@/components/MessageList'
 import { ThreadView } from '@/components/ThreadView'
+import { SearchBar } from '@/components/SearchBar'
 import { Message, Channel, User, Reaction } from '@/types/dataStructures'
 
 export default function Home() {
@@ -24,6 +25,20 @@ export default function Home() {
       redirect('/sign-in')
       return
     }
+
+    // Set user as online when they load the page
+    fetch('/api/users/online', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isOnline: true })
+    })
+
+    // Set user as offline when they leave
+    const handleBeforeUnload = () => {
+      // Using sendBeacon for more reliable delivery during page unload
+      navigator.sendBeacon('/api/users/online', JSON.stringify({ isOnline: false }))
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
 
     const initializeUser = async () => {
       try {
@@ -58,11 +73,21 @@ export default function Home() {
     };
 
     initializeUser();
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      // Set user as offline when component unmounts
+      fetch('/api/users/online', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isOnline: false })
+      })
+    }
   }, [userId])
 
   if (!data || !userId) return null
 
-  const handleSelectChannel = async (channelId: string) => {
+  const handleSelectChannel = async (channelId: string, keepThread: boolean = false) => {
     // Try to join the channel first
     await fetch('/api/channels/join', {
       method: 'POST',
@@ -71,7 +96,9 @@ export default function Home() {
     })
     
     setSelectedChannelId(channelId)
-    setSelectedThreadId(null)
+    if (!keepThread) {
+      setSelectedThreadId(null)
+    }
     
     // Refresh data to get updated channel memberships
     const newData = await fetch('/api/getData').then(res => res.json())
@@ -387,78 +414,90 @@ export default function Home() {
     : []
 
   return (
-    <main className="flex h-screen">
-      <Sidebar 
-        isOpen={true}
-        channels={data.channels}
-        users={data.users}
-        currentUserId={userId}
-        onSelectChannel={handleSelectChannel}
-        onSelectUser={handleSelectUser}
-        onCreateChannel={handleCreateChannel}
-        onSetUserStatus={handleSetUserStatus}
-        onSetUserAvatar={handleSetUserAvatar}
-        onSetUserName={handleSetUserName}
+    <div className="h-screen flex flex-col">
+      <SearchBar 
+        onSelectChannel={handleSelectChannel} 
+        onOpenThread={handleOpenThread}
       />
-      <div className="flex-1 flex">
-        <MessageList 
-          messages={channelMessages}
+      <div className="flex-1 flex overflow-hidden">
+        <Sidebar
+          isOpen={true}
+          channels={data.channels}
           users={data.users}
-          reactions={data.reactions}
-          onReply={handleOpenThread}
-          onReact={handleReact}
-          onOpenThread={handleOpenThread}
-          onEditMessage={handleEditMessage}
-          onDeleteMessage={handleDeleteMessage}
           currentUserId={userId}
-          onSendMessage={handleSendMessage}
-          channelName={selectedChannel?.name}
-          channelId={selectedChannel?.id}
-          isDM={selectedChannel?.isDM}
+          onSelectChannel={handleSelectChannel}
+          onCreateChannel={handleCreateChannel}
+          onSetUserStatus={handleSetUserStatus}
+          onSetUserAvatar={handleSetUserAvatar}
+          onSetUserName={handleSetUserName}
         />
-        {selectedThread && (
-          <ThreadView 
-            parentMessage={selectedThread}
-            replies={threadReplies}
-            users={data.users}
-            reactions={data.reactions}
-            onClose={handleCloseThread}
-            onReply={async (content, attachments, parentId) => {
-              // Upload files first
-              const uploadedAttachments = await Promise.all(
-                attachments.map(async (file) => {
-                  const formData = new FormData()
-                  formData.append('file', file)
-                  const response = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: formData
-                  })
-                  return response.json()
-                })
-              )
+        <main className="flex-1 flex">
+          {selectedChannelId && (
+            <MessageList
+              channelId={selectedChannelId}
+              messages={data.messages.filter(m => m.channelId === selectedChannelId)}
+              users={data.users}
+              reactions={data.reactions}
+              currentUserId={userId}
+              onOpenThread={handleOpenThread}
+              onReact={handleReact}
+              onEditMessage={handleEditMessage}
+              onDeleteMessage={handleDeleteMessage}
+              onSendMessage={handleSendMessage}
+              onReply={handleOpenThread}
+              channelName={data.channels.find(c => c.id === selectedChannelId)?.name}
+              isDM={data.channels.find(c => c.id === selectedChannelId)?.isDM}
+            />
+          )}
+          {selectedThreadId && (() => {
+            const parentMessage = data.messages.find(m => m.id === selectedThreadId)
+            if (!parentMessage) return null
+            
+            return (
+              <ThreadView
+                parentMessage={parentMessage}
+                replies={data.messages.filter(m => m.parentMessageId === selectedThreadId)}
+                users={data.users}
+                reactions={data.reactions}
+                currentUserId={userId}
+                onClose={handleCloseThread}
+                onReact={handleReact}
+                onEditMessage={handleEditMessage}
+                onDeleteMessage={handleDeleteMessage}
+                onReply={async (content, attachments, parentId) => {
+                  // Upload files first
+                  const uploadedAttachments = await Promise.all(
+                    attachments.map(async (file) => {
+                      const formData = new FormData()
+                      formData.append('file', file)
+                      const response = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData
+                      })
+                      return response.json()
+                    })
+                  )
 
-              // Create message with uploaded file URLs
-              await fetch('/api/messages', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                  content, 
-                  channelId: selectedChannel!.id,
-                  parentMessageId: parentId,
-                  attachments: uploadedAttachments
-                })
-              })
-              const newData = await fetch('/api/getData').then(res => res.json())
-              setData(newData)
-            }}
-            onReact={handleReact}
-            onEditMessage={handleEditMessage}
-            onDeleteMessage={handleDeleteMessage}
-            currentUserId={userId}
-          />
-        )}
+                  // Create message with uploaded file URLs
+                  await fetch('/api/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                      content, 
+                      channelId: selectedChannelId!,
+                      parentMessageId: parentId,
+                      attachments: uploadedAttachments
+                    })
+                  })
+                  const newData = await fetch('/api/getData').then(res => res.json())
+                  setData(newData)
+                }}
+              />
+            )
+          })()}
+        </main>
       </div>
-    </main>
+    </div>
   )
 }
 

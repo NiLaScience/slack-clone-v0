@@ -6,7 +6,34 @@ import { NextRequest } from "next/server";
 
 export async function GET() {
   try {
-    const channels = await prisma.channel.findMany()
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Get all non-DM channels and DM channels where the user is a member
+    const channels = await prisma.channel.findMany({
+      where: {
+        OR: [
+          { isDM: false },  // All non-DM channels
+          {
+            AND: [
+              { isDM: true },  // DM channels
+              {
+                memberships: {
+                  some: {
+                    userId: userId  // Where user is a member
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      include: {
+        memberships: true
+      }
+    })
     return NextResponse.json(channels)
   } catch (error) {
     console.error('Failed to fetch channels:', error)
@@ -41,6 +68,11 @@ export async function POST(req: Request) {
       if (invalidUserIds.length > 0) {
         console.log('Invalid user IDs format:', invalidUserIds)
         return NextResponse.json({ error: "Invalid user IDs format", details: invalidUserIds }, { status: 400 })
+      }
+
+      // Prevent creating self-notes through this endpoint
+      if (userIds.length === 1) {
+        return NextResponse.json({ error: "Cannot create self-notes through this endpoint" }, { status: 400 })
       }
 
       // Ensure all users exist, create them if they don't
@@ -87,15 +119,15 @@ export async function POST(req: Request) {
       // Sort userIds to ensure consistent channel naming
       const sortedUserIds = [...new Set(userIds)].sort()
       const dmChannelName = `dm_${sortedUserIds.join('_')}`
-      const isSelfNote = sortedUserIds.length === 1
-      console.log('DM channel details:', { dmChannelName, isSelfNote })
+      console.log('DM channel details:', { dmChannelName })
 
       // Check if DM channel already exists
       console.log('Checking for existing DM channel')
       const existingChannel = await prisma.channel.findFirst({
         where: { 
           name: dmChannelName,
-          isDM: true
+          isDM: true,
+          isSelfNote: false
         },
         include: {
           memberships: true
@@ -104,7 +136,7 @@ export async function POST(req: Request) {
       console.log('Existing channel found:', existingChannel)
 
       if (existingChannel) {
-        // Ensure all users are members
+        // For regular DMs, ensure all users are members
         const existingMemberIds = existingChannel.memberships.map((m: { userId: string }) => m.userId)
         const missingMemberIds = sortedUserIds.filter(id => !existingMemberIds.includes(id))
         console.log('Missing member IDs:', missingMemberIds)
@@ -140,11 +172,11 @@ export async function POST(req: Request) {
       try {
         channel = await prisma.channel.create({
           data: {
-            id: `ch_${Date.now()}`,
+            id: `ch_${Date.now()}_${Math.random().toString(36).slice(2)}`,
             name: dmChannelName,
             isPrivate: true,
             isDM: true,
-            isSelfNote,
+            isSelfNote: false,
             createdAt: new Date(),
             updatedAt: new Date(),
           }
@@ -191,7 +223,7 @@ export async function POST(req: Request) {
     // Create new channel
     const channel = await prisma.channel.create({
       data: {
-        id: `ch_${Date.now()}`,
+        id: `ch_${Date.now()}_${Math.random().toString(36).slice(2)}`,
         name,
         isPrivate: isPrivate ?? false,
         isDM: false,
@@ -218,22 +250,6 @@ export async function POST(req: Request) {
       { error: "Internal server error", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     )
-  }
-}
-
-export async function PATCH(req: NextRequest) {
-  try {
-    const { messageId, newText } = await req.json();
-    if (!messageId || !newText) {
-      return NextResponse.json({ error: "Missing messageId or newText" }, { status: 400 });
-    }
-    await prisma.message.update({
-      where: { id: messageId },
-      data: { content: newText },
-    });
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
 

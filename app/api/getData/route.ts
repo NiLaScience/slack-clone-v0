@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getAuth } from '@clerk/nextjs/server'
+import { Channel, ChannelMembership } from '@/types/dataStructures'
 
 export async function GET(request: NextRequest) {
   try {
@@ -42,6 +43,12 @@ export async function GET(request: NextRequest) {
       prisma.reaction.findMany(),
     ])
 
+    // Add memberIds to channels
+    const channelsWithMemberIds = channels.map((channel: Channel & { memberships: ChannelMembership[] }) => ({
+      ...channel,
+      memberIds: channel.memberships.map((m: ChannelMembership) => m.userId)
+    }))
+
     console.log('Data fetch complete:', {
       userCount: users.length,
       channelCount: channels.length,
@@ -51,7 +58,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       users,
-      channels,
+      channels: channelsWithMemberIds,
       messages,
       reactions,
     })

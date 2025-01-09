@@ -26,8 +26,6 @@ export async function POST(req: Request) {
         senderId: userId,
         channelId,
         parentMessageId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         attachments: attachments ? {
           create: attachments.map((attachment: AttachmentInput) => ({
             id: `att_${Date.now()}_${Math.random().toString(36).slice(2)}`,

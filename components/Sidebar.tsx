@@ -1,12 +1,13 @@
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Hash, User, Users, Menu, LogOut } from 'lucide-react'
+import { Hash, Menu, LogOut } from 'lucide-react'
 import { Channel, User as UserType } from "@/types/dataStructures"
 import { CreateChannelDialog } from "./CreateChannelDialog"
 import { UserProfileStatus } from "./UserProfileStatus"
 import { CircleStatus } from "@/components/ui/circle-status"
 import { SignOutButton } from "@clerk/nextjs"
+import { getChannelDisplayName } from "@/lib/utils"
 
 interface SidebarProps {
   isOpen: boolean;
@@ -14,7 +15,6 @@ interface SidebarProps {
   users: UserType[];
   currentUserId: string;
   onSelectChannel: (channelId: string) => void;
-  onSelectUser: (userId: string) => void;
   onCreateChannel: (name: string, isPrivate: boolean) => void;
   onSetUserStatus: (newStatus: string) => void;
   onSetUserAvatar: (newEmoji: string) => void;
@@ -27,7 +27,6 @@ export function Sidebar({
   users, 
   currentUserId,
   onSelectChannel, 
-  onSelectUser, 
   onCreateChannel, 
   onSetUserStatus, 
   onSetUserAvatar,
@@ -36,11 +35,15 @@ export function Sidebar({
   const currentUser = users.find(user => user.id === currentUserId)
   if (!currentUser) return null
 
+  // Separate channels into regular and DM channels
+  const regularChannels = channels.filter(channel => !channel.isDM)
+  const dmChannels = channels.filter(channel => channel.isDM)
+
   const SidebarContent = () => (
     <ScrollArea className="h-full py-6 pl-4 pr-6 flex flex-col bg-gray-800 text-white">
       <h2 className="mb-4 text-lg font-semibold">Channels</h2>
       <div className="space-y-2">
-        {channels.map((channel) => (
+        {regularChannels.map((channel) => (
           <Button
             key={channel.id}
             variant="ghost"
@@ -55,25 +58,35 @@ export function Sidebar({
       <CreateChannelDialog onCreateChannel={onCreateChannel} />
       <h2 className="mt-6 mb-4 text-lg font-semibold">Direct Messages</h2>
       <div className="space-y-2">
-        {users.map((user) => (
-          <Button
-            key={user.id}
-            variant="ghost"
-            className="w-full justify-start items-center"
-            onClick={() => onSelectUser(user.id)}
-          >
-            <div className="flex items-center relative">
-              <div className="relative w-6 h-6 mr-2 flex items-center justify-center">
-                <span className="text-xl">{user.avatar}</span>
-                <CircleStatus isOnline={user.isOnline} />
+        {dmChannels.map((channel) => {
+          const displayName = getChannelDisplayName({ 
+            name: channel.name, 
+            isDM: channel.isDM, 
+            memberIds: channel.memberIds || []
+          }, currentUserId, users)
+          const otherUserId = (channel.memberIds || []).find(id => id !== currentUserId)
+          const otherUser = users.find(user => user.id === otherUserId)
+          
+          return (
+            <Button
+              key={channel.id}
+              variant="ghost"
+              className="w-full justify-start items-center hover:bg-gray-700"
+              onClick={() => onSelectChannel(channel.id)}
+            >
+              <div className="flex items-center relative">
+                <div className="relative w-6 h-6 mr-2 flex items-center justify-center">
+                  <span className="text-xl">{otherUser?.avatar || '👤'}</span>
+                  <CircleStatus isOnline={otherUser?.isOnline} />
+                </div>
+                <span>
+                  {displayName}
+                  {otherUser?.status ? ` - ${otherUser.status}` : ""}
+                </span>
               </div>
-              <span>
-                {user.name}
-                {user.status ? ` - ${user.status}` : ""}
-              </span>
-            </div>
-          </Button>
-        ))}
+            </Button>
+          )
+        })}
       </div>
       <div className="mt-auto space-y-4 border-t pt-4">
         <UserProfileStatus

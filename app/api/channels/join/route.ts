@@ -47,6 +47,14 @@ export async function POST(req: Request) {
       )
     }
 
+    // Prevent joining DM channels through this endpoint
+    if (channel.isDM) {
+      return NextResponse.json(
+        { error: "Cannot join DM channels directly" },
+        { status: 400 }
+      )
+    }
+
     // Check if user is already a member
     const existingMembership = channel.memberships.find(
       (m: { userId: string }) => m.userId === userId

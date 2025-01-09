@@ -31,25 +31,40 @@
       "static/chunks/main-app.js",
       "static/chunks/app/api/channels/join/route.js"
     ],
-    "/api/users/name/route": [
+    "/api/search/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/users/name/route.js"
+      "static/chunks/app/api/search/route.js"
     ],
-    "/api/users/avatar/route": [
+    "/api/messages/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/users/avatar/route.js"
+      "static/chunks/app/api/messages/route.js"
     ],
-    "/api/channels/route": [
+    "/api/upload/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/channels/route.js"
+      "static/chunks/app/api/upload/route.js"
     ],
-    "/api/messages/[messageId]/route": [
+    "/api/reactions/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/messages/[messageId]/route.js"
+      "static/chunks/app/api/reactions/route.js"
+    ],
+    "/api/users/status/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/users/status/route.js"
+    ],
+    "/api/users/online/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/users/online/route.js"
+    ],
+    "/_not-found/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/_not-found/page.js"
     ]
   }
 }

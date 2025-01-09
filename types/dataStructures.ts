@@ -16,6 +16,8 @@ export interface Channel {
   isSelfNote: boolean;
   createdAt: Date;
   updatedAt: Date;
+  memberIds?: string[];
+  memberships?: ChannelMembership[];
 }
 
 export interface ChannelMembership {
