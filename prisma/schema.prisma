@@ -1,0 +1,87 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String              @id
+  name        String
+  avatar      String?
+  status      String?
+  isOnline    Boolean             @default(false)
+  createdAt   DateTime
+  updatedAt   DateTime
+  // A user can have many messages and many reactions
+  messages    Message[]
+  reactions   Reaction[]
+  memberships ChannelMembership[]
+}
+
+model Channel {
+  id          String              @id
+  name        String
+  isPrivate   Boolean             @default(false)
+  createdAt   DateTime
+  updatedAt   DateTime
+  // A channel can have many messages
+  messages    Message[]
+  // ChannelMembership links many users to many channels
+  memberships ChannelMembership[]
+}
+
+model ChannelMembership {
+  id        String   @id
+  channelId String
+  userId    String
+  createdAt DateTime
+
+  channel Channel @relation(fields: [channelId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+}
+
+model Message {
+  id              String   @id
+  channelId       String
+  senderId        String
+  content         String
+  parentMessageId String? // For threaded replies
+  createdAt       DateTime
+  updatedAt       DateTime
+
+  channel     Channel      @relation(fields: [channelId], references: [id])
+  sender      User         @relation(fields: [senderId], references: [id])
+  attachments Attachment[]
+  reactions   Reaction[]
+}
+
+model Reaction {
+  id        String   @id
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime
+
+  message Message @relation(fields: [messageId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+}
+
+model Attachment {
+  id          String   @id
+  messageId   String
+  filename    String
+  fileUrl     String
+  contentType String
+  createdAt   DateTime
+
+  message Message @relation(fields: [messageId], references: [id])
+}
