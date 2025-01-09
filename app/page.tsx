@@ -40,6 +40,25 @@ export default function Home() {
     }
     window.addEventListener('beforeunload', handleBeforeUnload)
 
+    // Set up polling for new data
+    const pollInterval = setInterval(async () => {
+      try {
+        const dataRes = await fetch('/api/getData')
+        if (dataRes.ok) {
+          const newData = await dataRes.json()
+          setData(prevData => {
+            // Only update if there are actual changes
+            if (JSON.stringify(prevData) !== JSON.stringify(newData)) {
+              return newData
+            }
+            return prevData
+          })
+        }
+      } catch (error) {
+        console.error('Error polling for new data:', error)
+      }
+    }, 3000) // Poll every 3 seconds
+
     const initializeUser = async () => {
       try {
         // Check if user exists
@@ -75,6 +94,7 @@ export default function Home() {
     initializeUser();
 
     return () => {
+      clearInterval(pollInterval)
       window.removeEventListener('beforeunload', handleBeforeUnload)
       // Set user as offline when component unmounts
       fetch('/api/users/online', {

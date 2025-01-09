@@ -1,7 +1,4 @@
 {
-  "/api/users/online/route": "app/api/users/online/route.js",
-  "/api/users/profile/create/route": "app/api/users/profile/create/route.js",
-  "/_not-found/page": "app/_not-found/page.js",
   "/api/getData/route": "app/api/getData/route.js",
   "/api/channels/join/route": "app/api/channels/join/route.js",
   "/page": "app/page.js",
