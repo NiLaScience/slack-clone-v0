@@ -1,239 +1,104 @@
-import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import type { Channel } from '@/types/dataStructures'
-import { NextRequest } from "next/server";
+import { getAuth } from '@clerk/nextjs/server'
 
-export async function GET() {
-  try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+const DEFAULT_CHANNELS = ['general', 'random']
 
-    // Get all non-DM channels and DM channels where the user is a member
-    const channels = await prisma.channel.findMany({
-      where: {
-        OR: [
-          { isDM: false },  // All non-DM channels
-          {
-            AND: [
-              { isDM: true },  // DM channels
-              {
-                memberships: {
-                  some: {
-                    userId: userId  // Where user is a member
-                  }
-                }
-              }
-            ]
-          }
-        ]
-      },
-      include: {
-        memberships: true
-      }
+// Create default channels if they don't exist
+async function ensureDefaultChannels() {
+  for (const channelName of DEFAULT_CHANNELS) {
+    const existingChannel = await prisma.channel.findFirst({
+      where: { name: channelName }
     })
-    return NextResponse.json(channels)
-  } catch (error) {
-    console.error('Failed to fetch channels:', error)
-    return new NextResponse('Failed to fetch channels', { status: 500 })
+
+    if (!existingChannel) {
+      await prisma.channel.create({
+        data: {
+          id: `channel_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          name: channelName,
+          isPrivate: false,
+          isDM: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      })
+    }
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { userId } = await auth()
-    console.log('Auth userId:', userId)
-    
+    // Ensure default channels exist
+    await ensureDefaultChannels()
+
+    const { userId } = getAuth(req)
     if (!userId) {
-      console.log('No userId from auth')
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return new NextResponse("Unauthorized", { status: 401 })
     }
 
     const body = await req.json()
     const { name, isPrivate, isDM, userIds } = body
-    console.log('Request body:', { name, isPrivate, isDM, userIds })
 
-    // Handle DM channel creation
+    // For DM channels
     if (isDM) {
-      console.log('Creating DM channel')
-      if (!Array.isArray(userIds) || userIds.length === 0) {
-        console.log('Invalid userIds:', userIds)
-        return NextResponse.json({ error: "userIds must be a non-empty array" }, { status: 400 })
-      }
-
-      // Validate user IDs
-      const invalidUserIds = userIds.filter(id => typeof id !== 'string' || !id.startsWith('user_'))
-      if (invalidUserIds.length > 0) {
-        console.log('Invalid user IDs format:', invalidUserIds)
-        return NextResponse.json({ error: "Invalid user IDs format", details: invalidUserIds }, { status: 400 })
-      }
-
-      // Prevent creating self-notes through this endpoint
-      if (userIds.length === 1) {
-        return NextResponse.json({ error: "Cannot create self-notes through this endpoint" }, { status: 400 })
-      }
-
-      // Ensure all users exist, create them if they don't
-      console.log('Finding existing users')
-      const existingUsers = await prisma.user.findMany({
-        where: {
-          id: {
-            in: userIds
-          }
-        }
-      })
-      console.log('Found existing users:', existingUsers)
-
-      const existingUserIds = existingUsers.map((u: { id: string }) => u.id)
-      const missingUserIds = userIds.filter(id => !existingUserIds.includes(id))
-      console.log('Missing user IDs:', missingUserIds)
-
-      // Create missing users with default profiles
-      if (missingUserIds.length > 0) {
-        console.log('Creating missing users')
-        try {
-          await Promise.all(missingUserIds.map(id =>
-            prisma.user.create({
-              data: {
-                id,
-                name: "New User",
-                avatar: "👤",
-                status: "",
-                isOnline: true,
-                createdAt: new Date(),
-                updatedAt: new Date()
-              }
-            })
-          ))
-        } catch (error) {
-          console.error('Failed to create users:', error)
-          return NextResponse.json(
-            { error: "Failed to create users", details: error instanceof Error ? error.message : String(error) },
-            { status: 500 }
-          )
-        }
-      }
-
-      // Sort userIds to ensure consistent channel naming
-      const sortedUserIds = [...new Set(userIds)].sort()
-      const dmChannelName = `dm_${sortedUserIds.join('_')}`
-      console.log('DM channel details:', { dmChannelName })
+      // Sort userIds to ensure consistent channel names for DMs
+      const sortedUserIds = userIds.sort()
+      const channelName = sortedUserIds.join('_')
 
       // Check if DM channel already exists
-      console.log('Checking for existing DM channel')
       const existingChannel = await prisma.channel.findFirst({
-        where: { 
-          name: dmChannelName,
+        where: {
           isDM: true,
-          isSelfNote: false
-        },
-        include: {
-          memberships: true
+          name: channelName
         }
       })
-      console.log('Existing channel found:', existingChannel)
 
       if (existingChannel) {
-        // For regular DMs, ensure all users are members
-        const existingMemberIds = existingChannel.memberships.map((m: { userId: string }) => m.userId)
-        const missingMemberIds = sortedUserIds.filter(id => !existingMemberIds.includes(id))
-        console.log('Missing member IDs:', missingMemberIds)
-
-        if (missingMemberIds.length > 0) {
-          console.log('Creating missing memberships')
-          try {
-            await Promise.all(missingMemberIds.map(userId =>
-              prisma.channelMembership.create({
-                data: {
-                  id: `membership_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-                  channelId: existingChannel.id,
-                  userId,
-                  createdAt: new Date()
-                }
-              })
-            ))
-          } catch (error) {
-            console.error('Failed to create memberships:', error)
-            return NextResponse.json(
-              { error: "Failed to create memberships", details: error instanceof Error ? error.message : String(error) },
-              { status: 500 }
-            )
-          }
-        }
-
         return NextResponse.json(existingChannel)
       }
 
       // Create new DM channel
-      console.log('Creating new DM channel')
-      let channel: Channel
-      try {
-        channel = await prisma.channel.create({
-          data: {
-            id: `ch_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-            name: dmChannelName,
-            isPrivate: true,
-            isDM: true,
-            isSelfNote: false,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }
-        })
-        console.log('Created channel:', channel)
+      const channel = await prisma.channel.create({
+        data: {
+          id: `channel_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          name: channelName,
+          isPrivate: true,
+          isDM: true,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      })
 
-        // Create channel memberships for all participants
-        console.log('Creating memberships for:', sortedUserIds)
-        await Promise.all(sortedUserIds.map(participantId =>
+      // Create memberships for all users
+      await Promise.all(
+        sortedUserIds.map((userId: string) =>
           prisma.channelMembership.create({
             data: {
               id: `membership_${Date.now()}_${Math.random().toString(36).slice(2)}`,
               channelId: channel.id,
-              userId: participantId,
+              userId,
               createdAt: new Date()
             }
           })
-        ))
-
-        return NextResponse.json(channel)
-      } catch (error) {
-        console.error('Failed to create channel or memberships:', error)
-        return NextResponse.json(
-          { error: "Failed to create channel or memberships", details: error instanceof Error ? error.message : String(error) },
-          { status: 500 }
         )
-      }
+      )
+
+      return NextResponse.json(channel)
     }
 
-    // Handle regular channel creation
-    if (!name) {
-      return NextResponse.json({ error: "name is required for regular channels" }, { status: 400 })
-    }
-
-    // Check if channel already exists
-    const existingChannel = await prisma.channel.findFirst({
-      where: { name }
-    })
-
-    if (existingChannel) {
-      return NextResponse.json(existingChannel)
-    }
-
-    // Create new channel
+    // For regular channels
     const channel = await prisma.channel.create({
       data: {
-        id: `ch_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        id: `channel_${Date.now()}_${Math.random().toString(36).slice(2)}`,
         name,
-        isPrivate: isPrivate ?? false,
+        isPrivate,
         isDM: false,
-        isSelfNote: false,
         createdAt: new Date(),
-        updatedAt: new Date(),
+        updatedAt: new Date()
       }
     })
 
-    // Create channel membership for current user
+    // Create membership for creator
     await prisma.channelMembership.create({
       data: {
         id: `membership_${Date.now()}_${Math.random().toString(36).slice(2)}`,
@@ -245,30 +110,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json(channel)
   } catch (error) {
-    console.error('Error in channels endpoint:', error)
-    return NextResponse.json(
-      { error: "Internal server error", details: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
+    console.error('Failed to create channel:', error)
+    return new NextResponse(
+      JSON.stringify({ 
+        error: 'Failed to create channel',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
-  }
-}
-
-export async function DELETE(req: NextRequest) {
-  try {
-    const { messageId } = await req.json();
-    if (!messageId) {
-      return NextResponse.json({ error: "Missing messageId" }, { status: 400 });
-    }
-    // Soft delete
-    await prisma.message.update({
-      where: { id: messageId },
-      data: {
-        isDeleted: true,
-        content: "[deleted]"
-      },
-    });
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 } 

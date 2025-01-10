@@ -35,6 +35,7 @@ interface MessageListProps {
   channelName?: string;
   channelId?: string;
   isDM?: boolean;
+  isSelfNote?: boolean;
 }
 
 export function MessageList({ 
@@ -50,7 +51,8 @@ export function MessageList({
   onSendMessage,
   channelName,
   channelId,
-  isDM
+  isDM,
+  isSelfNote
 }: MessageListProps) {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
 
@@ -121,7 +123,19 @@ export function MessageList({
         <div className="border-b p-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             {isDM ? (
-              <Users className="h-5 w-5" />
+              <div className="relative w-6 h-6 flex items-center justify-center">
+                {isSelfNote ? (
+                  <>
+                    <span className="text-xl">{users.find(u => u.id === currentUserId)?.avatar || '👤'}</span>
+                    <CircleStatus isOnline={users.find(u => u.id === currentUserId)?.isOnline} />
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xl">{users.find(u => u.id !== currentUserId)?.avatar || '👤'}</span>
+                    <CircleStatus isOnline={users.find(u => u.id !== currentUserId)?.isOnline} />
+                  </>
+                )}
+              </div>
             ) : (
               <Hash className="h-5 w-5" />
             )}
@@ -132,6 +146,25 @@ export function MessageList({
                 memberIds: messages.map(m => m.senderId).filter((id, i, arr) => arr.indexOf(id) === i)
               }, currentUserId, users) : channelName}
             </h2>
+          </div>
+          
+          {/* Member List */}
+          <div className="flex items-center -space-x-2">
+            {messages
+              .map(m => m.senderId)
+              .filter((id, i, arr) => arr.indexOf(id) === i) // Get unique senderIds
+              .map(userId => users.find(u => u.id === userId))
+              .filter((user): user is NonNullable<typeof user> => user !== undefined)
+              .map((user) => (
+                <div 
+                  key={user.id} 
+                  className="relative w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full ring-2 ring-white"
+                  title={user.name}
+                >
+                  <span className="text-xl">{user.avatar || '👤'}</span>
+                  <CircleStatus isOnline={user.isOnline} />
+                </div>
+              ))}
           </div>
         </div>
       )}

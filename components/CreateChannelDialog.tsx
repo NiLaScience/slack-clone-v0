@@ -6,29 +6,27 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 
 interface CreateChannelDialogProps {
-  onCreateChannel: (name: string, isPrivate: boolean) => void;
+  onSubmit: (name: string, isPrivate: boolean) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function CreateChannelDialog({ onCreateChannel }: CreateChannelDialogProps) {
+export function CreateChannelDialog({ onSubmit, open, onOpenChange }: CreateChannelDialogProps) {
   const [name, setName] = useState('')
   const [isPrivate, setIsPrivate] = useState(false)
-  const [open, setOpen] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (name.trim()) {
-      onCreateChannel(name, isPrivate)
+      onSubmit(name, isPrivate)
       setName('')
       setIsPrivate(false)
-      setOpen(false)
+      onOpenChange(false)
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="w-full mt-4 text-white bg-blue-600 hover:bg-blue-700 rounded">Create Channel</Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Create New Channel</DialogTitle>

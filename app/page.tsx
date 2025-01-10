@@ -421,6 +421,30 @@ export default function Home() {
     }
   }
 
+  const handleDeleteChannel = async (channelId: string) => {
+    try {
+      const response = await fetch(`/api/channels/${channelId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete channel');
+      }
+
+      // Refresh data
+      const newData = await fetch('/api/getData').then(res => res.json());
+      setData(newData);
+      
+      // Clear selected channel if it was deleted
+      if (selectedChannelId === channelId) {
+        setSelectedChannelId(null);
+      }
+    } catch (error) {
+      console.error('Error deleting channel:', error);
+      // You might want to show an error toast here
+    }
+  };
+
   const selectedChannel = data.channels.find(c => c.id === selectedChannelId)
   const channelMessages = selectedChannel 
     ? data.messages.filter(m => m.channelId === selectedChannel.id)
@@ -445,8 +469,10 @@ export default function Home() {
           channels={data.channels}
           users={data.users}
           currentUserId={userId}
+          selectedChannelId={selectedChannelId}
           onSelectChannel={handleSelectChannel}
           onCreateChannel={handleCreateChannel}
+          onDeleteChannel={handleDeleteChannel}
           onSetUserStatus={handleSetUserStatus}
           onSetUserAvatar={handleSetUserAvatar}
           onSetUserName={handleSetUserName}
@@ -467,6 +493,7 @@ export default function Home() {
               onReply={handleOpenThread}
               channelName={data.channels.find(c => c.id === selectedChannelId)?.name}
               isDM={data.channels.find(c => c.id === selectedChannelId)?.isDM}
+              isSelfNote={data.channels.find(c => c.id === selectedChannelId)?.isSelfNote}
             />
           )}
           {selectedThreadId && (() => {

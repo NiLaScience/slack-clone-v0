@@ -23,22 +23,39 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const reaction = await prisma.reaction.create({
-      data: {
-        id: `reaction_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    // Check if reaction already exists
+    const existingReaction = await prisma.reaction.findFirst({
+      where: {
         messageId,
         userId: user.id,
-        emoji,
-        createdAt: new Date()
+        emoji
       }
     })
 
-    return NextResponse.json(reaction)
+    if (existingReaction) {
+      // If reaction exists, remove it
+      await prisma.reaction.delete({
+        where: { id: existingReaction.id }
+      })
+      return NextResponse.json({ success: true, action: 'removed' })
+    } else {
+      // If reaction doesn't exist, create it
+      const reaction = await prisma.reaction.create({
+        data: {
+          id: `reaction_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          messageId,
+          userId: user.id,
+          emoji,
+          createdAt: new Date()
+        }
+      })
+      return NextResponse.json({ success: true, action: 'added', reaction })
+    }
   } catch (error) {
-    console.error('Failed to create reaction:', error)
+    console.error('Failed to toggle reaction:', error)
     return new NextResponse(
       JSON.stringify({
-        error: 'Failed to create reaction',
+        error: 'Failed to toggle reaction',
         details: error instanceof Error ? error.message : 'Unknown error'
       }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }

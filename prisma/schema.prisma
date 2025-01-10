@@ -79,6 +79,8 @@ model Reaction {
 
   message Message @relation(fields: [messageId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([userId, messageId, emoji])
 }
 
 model Attachment {

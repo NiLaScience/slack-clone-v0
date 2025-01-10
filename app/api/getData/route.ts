@@ -1,72 +1,65 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getAuth } from '@clerk/nextjs/server'
-import { Channel, ChannelMembership } from '@/types/dataStructures'
 
-export async function GET(request: NextRequest) {
+const DEFAULT_CHANNELS = ['general', 'random']
+
+// Create default channels if they don't exist
+async function ensureDefaultChannels() {
+  for (const channelName of DEFAULT_CHANNELS) {
+    const existingChannel = await prisma.channel.findFirst({
+      where: { name: channelName }
+    })
+
+    if (!existingChannel) {
+      await prisma.channel.create({
+        data: {
+          id: `channel_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          name: channelName,
+          isPrivate: false,
+          isDM: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      })
+    }
+  }
+}
+
+export async function GET(req: NextRequest) {
   try {
-    console.log('Starting getData request')
-    
-    const { userId } = getAuth(request)
+    // Ensure default channels exist
+    await ensureDefaultChannels()
+
+    const { userId } = getAuth(req)
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 })
     }
-    
-    // Verify user exists
-    const user = await prisma.user.findUnique({
-      where: { id: userId }
-    })
-    
-    if (!user) {
-      return new NextResponse(
-        JSON.stringify({ error: "User not found" }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
-      )
-    }
 
-    // Fetch all data
-    console.log('Fetching all data')
-    const [users, channels, messages, reactions] = await Promise.all([
+    // Get all data
+    const [channels, messages, users, reactions, channelMemberships] = await Promise.all([
+      prisma.channel.findMany(),
+      prisma.message.findMany(),
       prisma.user.findMany(),
-      prisma.channel.findMany({
-        include: {
-          memberships: true
-        }
-      }),
-      prisma.message.findMany({
-        include: {
-          attachments: true,
-          sender: true,
-          channel: true,
-        },
-      }),
       prisma.reaction.findMany(),
+      prisma.channelMembership.findMany()
     ])
 
-    // Add memberIds to channels
-    const channelsWithMemberIds = channels.map((channel: Channel & { memberships: ChannelMembership[] }) => ({
-      ...channel,
-      memberIds: channel.memberships.map((m: ChannelMembership) => m.userId)
-    }))
-
-    console.log('Data fetch complete:', {
-      userCount: users.length,
-      channelCount: channels.length,
-      messageCount: messages.length,
-      reactionCount: reactions.length,
-    })
-
     return NextResponse.json({
-      users,
-      channels: channelsWithMemberIds,
+      channels,
       messages,
+      users,
       reactions,
+      channelMemberships
     })
   } catch (error) {
-    console.error('Failed to fetch data:', error)
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
+    console.error('Failed to get data:', error)
+    return new NextResponse(
+      JSON.stringify({
+        error: 'Failed to get data',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }
 } 

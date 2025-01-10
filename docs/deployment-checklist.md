@@ -28,6 +28,24 @@
 - [ ] Add DDoS protection
 - [ ] Implement proper CORS policy
 
+### 5. Notification System
+- [ ] Implement in-app notifications for:
+  - New messages in other channels
+  - @mentions and replies
+  - Direct messages
+  - File upload status
+  - Error notifications
+- [ ] Add browser notifications:
+  - Request permission on first visit
+  - Background notifications
+  - Desktop notifications
+  - Sound notifications for priority events
+- [ ] Configure notification preferences:
+  - Per-channel settings
+  - DM notifications
+  - Mention notifications
+  - Sound settings
+
 ### 5. Database Setup
 ```bash
 # Required migrations

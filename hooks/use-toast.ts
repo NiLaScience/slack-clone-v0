@@ -8,8 +8,11 @@ import type {
   ToastProps,
 } from "@/components/ui/toast"
 
-const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+// Maximum number of toasts that can be shown at once
+const TOAST_LIMIT = 3
+
+// How long (in ms) a toast remains visible before auto-dismissing
+const TOAST_REMOVE_DELAY = 5000 // 5 seconds is a common duration for toasts
 
 type ToasterToast = ToastProps & {
   id: string
