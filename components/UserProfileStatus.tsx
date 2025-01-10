@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { CircleStatus } from "@/components/ui/circle-status"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
+import { Edit2, Check, X } from 'lucide-react'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react'
 
 type UserProfileStatusProps = {
   user: {
     id: string
     name: string
+    email: string
     avatar?: string
     status?: string
     isOnline?: boolean
@@ -20,140 +28,253 @@ const emojiOptions = ['😀','😎','👾','🐱','🐶','🍀','🐸','🔥','�
 
 export function UserProfileStatus({ user, onSetUserStatus, onSetUserAvatar, onSetUserName }: UserProfileStatusProps) {
   const [open, setOpen] = useState(false)
-  // Whether the user picked “Custom”
   const [isCustom, setIsCustom] = useState(false)
   const [customStatus, setCustomStatus] = useState('')
   const [editName, setEditName] = useState(false)
   const [tempName, setTempName] = useState(user.name)
+  const [editStatus, setEditStatus] = useState(false)
+  const [tempStatus, setTempStatus] = useState('')
 
-  // Sync local custom input and isCustom when user.status changes
   useEffect(() => {
     if (user.status && !predefinedStatuses.includes(user.status)) {
       setIsCustom(true)
       setCustomStatus(user.status)
+      setTempStatus(user.status)
     } else {
       setIsCustom(false)
       setCustomStatus('')
+      setTempStatus(user.status || '')
     }
-    setTempName(user.name) // Sync name if updated externally
+    setTempName(user.name)
   }, [user.status, user.name])
 
-  const handleSelectEmoji = (emoji: string) => {
-    onSetUserAvatar(emoji)
-    setOpen(false)
+  const handleSelectEmoji = (emojiData: EmojiClickData) => {
+    onSetUserAvatar(emojiData.emoji)
   }
 
   const handleSelectStatus = (newStatus: string) => {
     if (newStatus === 'Custom') {
       setIsCustom(true)
-      // Keep the popover open so user can type
+      setEditStatus(true)
     } else {
       onSetUserStatus(newStatus)
       setIsCustom(false)
-      setOpen(false)
+      setEditStatus(false)
     }
   }
 
-  const handleCustomStatusEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Close & save on Enter
-    if (e.key === 'Enter') {
-      onSetUserStatus(customStatus)
-      setOpen(false)
+  const handleStatusConfirm = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && tempStatus.trim()) {
+      onSetUserStatus(tempStatus.trim())
+      setEditStatus(false)
     }
   }
 
-  const handleCustomStatusBlur = () => {
-    // Optionally save on blur
-    if (customStatus.trim()) {
-      onSetUserStatus(customStatus.trim())
+  const handleStatusBlur = () => {
+    if (!editStatus) return
+    if (tempStatus.trim() && tempStatus.trim() !== user.status) {
+      onSetUserStatus(tempStatus.trim())
     }
+    setEditStatus(false)
   }
 
-  const handleNameConfirm = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      onSetUserName(tempName)
+  const handleNameConfirm = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && tempName.trim()) {
+      await onSetUserName(tempName.trim())
       setEditName(false)
     }
   }
 
-  const handleNameBlur = () => {
-    onSetUserName(tempName.trim())
+  const handleNameBlur = async () => {
+    if (tempName.trim() && tempName.trim() !== user.name) {
+      await onSetUserName(tempName.trim())
+    }
     setEditName(false)
+  }
+
+  const handleOpenChange = (newOpen: boolean) => {
+    // Only allow closing via explicit actions (close button or escape)
+    if (!newOpen && !open) return
+    setOpen(newOpen)
   }
 
   return (
     <div className="flex items-center gap-2">
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
-          <button
-            className="flex items-center space-x-2 outline-none"
-            title="Change status"
+          <Button
+            variant="ghost"
+            className="relative flex items-center w-full gap-2 px-2 hover:bg-gray-700/50"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setOpen(!open)
+            }}
           >
-            <div className="relative w-8 h-8 flex items-center justify-center">
+            <div className="relative flex items-center justify-center w-8 h-8">
               <span className="text-2xl">{user.avatar ?? '🤔'}</span>
-              <CircleStatus isOnline={user.isOnline} />
+              <CircleStatus isOnline={user.isOnline} status={user.status} />
             </div>
-            <span className="text-sm">
-              {user.status || '(Set status)'}
-            </span>
-          </button>
+            <div className="flex flex-col items-start flex-1 min-w-0">
+              <span className="text-sm font-medium truncate w-full">
+                {user.name}
+              </span>
+              <span className="text-xs text-gray-400 truncate w-full">
+                {user.status || 'Set a status'}
+              </span>
+            </div>
+          </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-48 p-2">
-          <div className="flex flex-col space-y-2 bg-white shadow-md rounded-md p-3">
-            {/* Editable name */}
-            {!editName ? (
-              <div className="flex justify-between items-center">
-                <span className="font-semibold">{user.name}</span>
-                <button
-                  onClick={() => setEditName(true)}
-                  className="text-xs underline text-blue-600"
-                >
-                  Change name
-                </button>
-              </div>
-            ) : (
-              <input
-                className="border border-gray-300 rounded p-1 text-sm w-full"
-                value={tempName}
-                onChange={(e) => setTempName(e.target.value)}
-                onKeyDown={handleNameConfirm}
-                onBlur={handleNameBlur}
-                autoFocus
-              />
-            )}
-
-            {/* Emoji chooser */}
-            <div className="flex flex-wrap gap-1">
-              {emojiOptions.map((emoji) => (
-                <button
-                  key={emoji}
-                  className="rounded hover:bg-gray-200 px-2"
-                  onClick={() => handleSelectEmoji(emoji)}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-            {predefinedStatuses.map((s) => (
-              <button
-                key={s}
-                onClick={() => handleSelectStatus(s)}
-                className="py-1 text-left hover:bg-gray-100 text-sm"
+        <PopoverContent 
+          className="w-80 p-4" 
+          align="start"
+          onEscapeKeyDown={() => setOpen(false)}
+          onInteractOutside={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+          }}
+          onPointerDownOutside={(e) => {
+            e.preventDefault()
+          }}
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-medium">Profile Settings</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => setOpen(false)}
               >
-                {s}
-              </button>
-            ))}
-            {/* Only show custom input if user chose “Custom” */}
-            {isCustom && (
-              <input
-                className="border border-gray-300 rounded p-1 text-sm w-full"
-                placeholder="Enter custom status"
-                value={customStatus}
-                onChange={(e) => setCustomStatus(e.target.value)}
-                onKeyDown={handleCustomStatusEnter}
-                onBlur={handleCustomStatusBlur}
-              />
-            )}
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            {/* Name section */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Display Name</Label>
+                {!editName ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2"
+                    onClick={() => setEditName(true)}
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2"
+                    onClick={handleNameBlur}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              {editName ? (
+                <Input
+                  value={tempName}
+                  onChange={(e) => setTempName(e.target.value)}
+                  onKeyDown={handleNameConfirm}
+                  onBlur={handleNameBlur}
+                  className="h-8"
+                  autoFocus
+                />
+              ) : (
+                <p className="text-sm">{user.name}</p>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Email section */}
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <p className="text-sm text-gray-500">{user.email}</p>
+            </div>
+
+            <Separator />
+
+            {/* Avatar section */}
+            <div className="space-y-2">
+              <Label>Avatar</Label>
+              <div className="w-full">
+                <EmojiPicker
+                  onEmojiClick={handleSelectEmoji}
+                  autoFocusSearch={false}
+                  width="100%"
+                  height={350}
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Status section */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Status</Label>
+                {isCustom && (
+                  <>
+                    {!editStatus ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2"
+                        onClick={() => setEditStatus(true)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2"
+                        onClick={handleStatusBlur}
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
+              <div className="grid gap-2">
+                <Select
+                  value={isCustom ? 'Custom' : (user.status || '')}
+                  onValueChange={handleSelectStatus}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Set a status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {predefinedStatuses.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isCustom && (
+                  <>
+                    {editStatus ? (
+                      <Input
+                        value={tempStatus}
+                        onChange={(e) => setTempStatus(e.target.value)}
+                        onKeyDown={handleStatusConfirm}
+                        onBlur={handleStatusBlur}
+                        placeholder="What's your status?"
+                        className="h-8"
+                        autoFocus
+                      />
+                    ) : (
+                      <p className="text-sm">{user.status}</p>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </PopoverContent>
       </Popover>

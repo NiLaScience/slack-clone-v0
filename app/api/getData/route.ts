@@ -1,120 +1,78 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getAuth } from '@clerk/nextjs/server'
 
-export async function GET() {
-  try {
-    console.log('Starting getData request')
-    
-    // Get or create default user
-    console.log('Checking for default user')
-    let defaultUser = await prisma.user.findFirst()
-    console.log('Default user query result:', defaultUser)
-    
-    if (!defaultUser) {
-      console.log('Creating default user')
-      defaultUser = await prisma.user.create({
-        data: {
-          id: 'user_1',
-          name: 'Default User',
-          avatar: '👤',
-          isOnline: true,
-          status: 'Online',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }
-      })
-      console.log('Created default user:', defaultUser)
-    }
+const DEFAULT_CHANNELS = ['general', 'random']
 
-    // Get or create general channel
-    console.log('Checking for general channel')
-    let generalChannel = await prisma.channel.findFirst({
-      where: { name: 'general' }
+// Create default channels if they don't exist
+async function ensureDefaultChannels() {
+  for (const channelName of DEFAULT_CHANNELS) {
+    const existingChannel = await prisma.channel.findFirst({
+      where: { name: channelName }
     })
-    console.log('General channel query result:', generalChannel)
-    
-    if (!generalChannel) {
-      console.log('Creating general channel')
-      generalChannel = await prisma.channel.create({
+
+    if (!existingChannel) {
+      await prisma.channel.create({
         data: {
-          id: 'channel_1',
-          name: 'general',
+          id: `channel_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          name: channelName,
           isPrivate: false,
+          isDM: false,
           createdAt: new Date(),
-          updatedAt: new Date(),
+          updatedAt: new Date()
         }
       })
-      console.log('Created general channel:', generalChannel)
+    }
+  }
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    // Ensure default channels exist
+    await ensureDefaultChannels()
+
+    const { userId } = getAuth(req)
+    if (!userId) {
+      return new NextResponse("Unauthorized", { status: 401 })
     }
 
-    // Get or create channel membership
-    console.log('Checking for channel membership')
-    let membership = await prisma.channelMembership.findFirst({
-      where: {
-        userId: defaultUser.id,
-        channelId: generalChannel.id
-      }
-    })
-    console.log('Channel membership query result:', membership)
-    
-    if (!membership) {
-      console.log('Creating channel membership')
-      membership = await prisma.channelMembership.create({
-        data: {
-          id: 'membership_1',
-          userId: defaultUser.id,
-          channelId: generalChannel.id,
-          createdAt: new Date()
+    // Get all data
+    const [channels, messages, users, reactions] = await Promise.all([
+      prisma.channel.findMany({
+        include: {
+          memberships: true
         }
-      })
-      console.log('Created channel membership:', membership)
-    }
-
-    // Fetch all data
-    console.log('Fetching all data')
-    const [users, channels, channelMemberships, messages, reactions] = await Promise.all([
-      prisma.user.findMany(),
-      prisma.channel.findMany(),
-      prisma.channelMembership.findMany(),
+      }),
       prisma.message.findMany({
         include: {
-          attachments: true,
-        },
+          attachments: true
+        }
       }),
-      prisma.reaction.findMany(),
+      prisma.user.findMany(),
+      prisma.reaction.findMany()
     ])
 
-    console.log('Data fetch complete:', {
-      userCount: users.length,
-      channelCount: channels.length,
-      membershipCount: channelMemberships.length,
-      messageCount: messages.length,
-      reactionCount: reactions.length,
-    })
+    // Transform channels to include memberIds
+    const transformedChannels = channels.map(channel => ({
+      ...channel,
+      memberIds: channel.memberships.map(m => m.userId),
+      memberships: undefined
+    }))
 
     return NextResponse.json({
-      users,
-      channels,
-      channelMemberships,
+      channels: transformedChannels,
       messages,
-      reactions,
+      users,
+      reactions
     })
   } catch (error) {
-    console.error('Failed to fetch data. Full error:', {
-      error,
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    })
+    console.error('Failed to get data:', error)
     return new NextResponse(
       JSON.stringify({
-        error: 'Internal Server Error',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
+        error: 'Failed to get data',
+        details: error instanceof Error ? error.message : 'Unknown error'
       }),
-      { 
-        status: 500, 
-        headers: { 'Content-Type': 'application/json' }
-      }
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }
 } 

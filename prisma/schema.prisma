@@ -16,9 +16,11 @@ datasource db {
 model User {
   id          String              @id
   name        String
+  email       String   @unique
   avatar      String?
   status      String?
   isOnline    Boolean             @default(false)
+  lastActiveAt DateTime @default(now())
   createdAt   DateTime
   updatedAt   DateTime
   // A user can have many messages and many reactions
@@ -31,12 +33,16 @@ model Channel {
   id          String              @id
   name        String
   isPrivate   Boolean             @default(false)
+  isDM        Boolean             @default(false)
+  isSelfNote  Boolean             @default(false)
   createdAt   DateTime
   updatedAt   DateTime
   // A channel can have many messages
   messages    Message[]
   // ChannelMembership links many users to many channels
   memberships ChannelMembership[]
+
+  @@unique([isSelfNote, name], name: "unique_self_note")
 }
 
 model ChannelMembership {
@@ -55,8 +61,10 @@ model Message {
   senderId        String
   content         String
   parentMessageId String? // For threaded replies
-  createdAt       DateTime
-  updatedAt       DateTime
+  isDeleted       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  editedAt        DateTime?
 
   channel     Channel      @relation(fields: [channelId], references: [id])
   sender      User         @relation(fields: [senderId], references: [id])
@@ -73,6 +81,8 @@ model Reaction {
 
   message Message @relation(fields: [messageId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([userId, messageId, emoji])
 }
 
 model Attachment {

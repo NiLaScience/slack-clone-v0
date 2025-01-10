@@ -1,6 +1,7 @@
 export interface User {
   id: string;
   name: string;
+  email: string;
   avatar: string;
   status?: string;
   isOnline?: boolean;
@@ -12,8 +13,12 @@ export interface Channel {
   id: string;
   name: string;
   isPrivate: boolean;
+  isDM: boolean;
+  isSelfNote: boolean;
   createdAt: Date;
   updatedAt: Date;
+  memberIds?: string[];
+  memberships?: ChannelMembership[];
 }
 
 export interface ChannelMembership {
@@ -25,13 +30,18 @@ export interface ChannelMembership {
 
 export interface Message {
   id: string;
-  channelId: string;
-  senderId: string;
   content: string;
-  parentMessageId: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  attachments: Attachment[];
+  senderId: string;
+  channelId: string;
+  parentMessageId?: string;
+  createdAt: string;
+  attachments?: Attachment[];
+  isDeleted?: boolean;
+  editedAt?: string;
+  editHistory?: {
+    content: string;
+    editedAt: string;
+  }[];
 }
 
 export interface Reaction {
