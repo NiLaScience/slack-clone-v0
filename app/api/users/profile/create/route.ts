@@ -144,6 +144,9 @@ export async function POST() {
               createdAt: new Date()
             }
           }
+        },
+        include: {
+          memberships: true
         }
       });
       console.log('Created self-note channel:', selfNoteChannel);
