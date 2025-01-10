@@ -57,23 +57,67 @@ export default function Home() {
     // Set initial timer
     resetInactivityTimer()
 
-    // Set user as online when they load the page
-    fetch('/api/users/online', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isOnline: true })
-    })
-
-    // Set user as offline when they leave
-    const handleBeforeUnload = () => {
-      // Using sendBeacon for more reliable delivery during page unload
-      navigator.sendBeacon('/api/users/online', JSON.stringify({ isOnline: false }))
+    // Function to update online status
+    const updateOnlineStatus = async (isOnline: boolean) => {
+      try {
+        await fetch('/api/users/online', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isOnline })
+        })
+      } catch (error) {
+        console.error('Failed to update online status:', error)
+      }
     }
+
+    // Handle page visibility changes
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        updateOnlineStatus(true)
+      } else {
+        updateOnlineStatus(false)
+      }
+    }
+
+    // Handle page unload
+    const handleBeforeUnload = () => {
+      // Try both methods for maximum reliability
+      try {
+        navigator.sendBeacon('/api/users/online', JSON.stringify({ isOnline: false }))
+      } catch (error) {
+        console.error('SendBeacon failed:', error)
+      }
+      
+      // Fallback to fetch
+      try {
+        fetch('/api/users/online', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isOnline: false }),
+          keepalive: true
+        })
+      } catch (error) {
+        console.error('Fetch fallback failed:', error)
+      }
+    }
+
+    // Set up event listeners
+    document.addEventListener('visibilitychange', handleVisibilityChange)
     window.addEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener('pagehide', handleBeforeUnload)
+
+    // Set initial online status
+    updateOnlineStatus(true)
 
     // Set up polling for new data
     const pollInterval = setInterval(async () => {
       try {
+        // Send heartbeat first
+        await fetch('/api/users/heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        })
+
         const dataRes = await fetch('/api/getData')
         if (dataRes.ok) {
           const newData = await dataRes.json()
@@ -93,50 +137,51 @@ export default function Home() {
     const initializeUser = async () => {
       try {
         // Check if user exists
-        const checkRes = await fetch('/api/users/profile/create');
+        const checkRes = await fetch('/api/users/profile/create')
         
         if (checkRes.status === 404) {
           // User doesn't exist, create new user
           const createRes = await fetch('/api/users/profile/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
-          });
+          })
           
           if (!createRes.ok) {
-            throw new Error('Failed to create user profile');
+            throw new Error('Failed to create user profile')
           }
         } else if (!checkRes.ok) {
-          throw new Error('Failed to check user profile');
+          throw new Error('Failed to check user profile')
         }
 
         // Fetch initial data
-        const dataRes = await fetch('/api/getData');
+        const dataRes = await fetch('/api/getData')
         if (!dataRes.ok) {
-          throw new Error('Failed to fetch initial data');
+          throw new Error('Failed to fetch initial data')
         }
         
-        const initialData = await dataRes.json();
-        setData(initialData);
+        const initialData = await dataRes.json()
+        setData(initialData)
       } catch (error) {
-        console.error('Error in user initialization:', error);
+        console.error('Error in user initialization:', error)
       }
-    };
+    }
 
-    initializeUser();
+    initializeUser()
 
     return () => {
+      // Clean up all event listeners
       clearTimeout(inactivityTimeout)
       window.removeEventListener('mousemove', handleActivity)
       window.removeEventListener('keydown', handleActivity)
       window.removeEventListener('click', handleActivity)
       window.removeEventListener('scroll', handleActivity)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('beforeunload', handleBeforeUnload)
+      window.removeEventListener('pagehide', handleBeforeUnload)
+      clearInterval(pollInterval)
+
       // Set user as offline when component unmounts
-      fetch('/api/users/online', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isOnline: false })
-      })
+      updateOnlineStatus(false)
     }
   }, [userId])
 
@@ -311,8 +356,22 @@ export default function Home() {
     try {
       console.log('Starting DM channel creation with:', { targetUserId, currentUserId: userId })
       
+      // Check if this is a self-note request
+      const isSelfNote = targetUserId === userId
+      
+      // If it's a self-note, first try to find an existing one
+      if (isSelfNote) {
+        const existingChannel = data.channels.find(
+          ch => ch.isSelfNote && ch.memberships?.some(m => m.userId === userId)
+        )
+        if (existingChannel) {
+          setSelectedChannelId(existingChannel.id)
+          return
+        }
+      }
+      
       // Create or get DM channel
-      const userIds = targetUserId === userId ? [userId] : [userId, targetUserId]
+      const userIds = isSelfNote ? [userId] : [userId, targetUserId].sort()
       console.log('Using userIds:', userIds)
       
       const res = await fetch('/api/channels', {

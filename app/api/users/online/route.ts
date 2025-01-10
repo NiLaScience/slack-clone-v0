@@ -19,6 +19,12 @@ export async function PATCH(req: Request) {
     return NextResponse.json(user)
   } catch (error) {
     console.error('Failed to update online status:', error)
-    return new NextResponse('Internal Server Error', { status: 500 })
+    return new NextResponse(
+      JSON.stringify({
+        error: 'Failed to update online status',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    )
   }
 } 

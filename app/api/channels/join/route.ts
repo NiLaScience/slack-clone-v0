@@ -1,67 +1,45 @@
-import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { NextResponse, NextRequest } from 'next/server'
+import { getAuth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
+import { validateChannelOperation } from '../../middleware/channelValidation'
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { channelId, userId } = await req.json()
-
-    if (!channelId || !userId) {
+    const { userId } = getAuth(req)
+    if (!userId) {
       return NextResponse.json(
-        { error: "channelId and userId are required" },
+        { error: "Unauthorized" },
+        { status: 401 }
+      )
+    }
+
+    const { channelId } = await req.json()
+    if (!channelId) {
+      return NextResponse.json(
+        { error: "channelId is required" },
         { status: 400 }
       )
     }
 
-    // Check if user exists, create if not
-    const user = await prisma.user.findUnique({
-      where: { id: userId }
-    })
-
-    if (!user) {
-      await prisma.user.create({
-        data: {
-          id: userId,
-          name: "New User",
-          avatar: "👤",
-          status: "",
-          isOnline: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-      })
-    }
-
-    // Check if channel exists
-    const channel = await prisma.channel.findUnique({
-      where: { id: channelId },
-      include: {
-        memberships: true
-      }
-    })
-
-    if (!channel) {
+    // Validate channel operation
+    const validationError = await validateChannelOperation(channelId, 'join')
+    if (validationError) {
       return NextResponse.json(
-        { error: "Channel not found" },
-        { status: 404 }
-      )
-    }
-
-    // Prevent joining DM channels through this endpoint
-    if (channel.isDM) {
-      return NextResponse.json(
-        { error: "Cannot join DM channels directly" },
-        { status: 400 }
+        { error: validationError.error },
+        { status: validationError.status }
       )
     }
 
     // Check if user is already a member
-    const existingMembership = channel.memberships.find(
-      (m: { userId: string }) => m.userId === userId
-    )
+    const existingMembership = await prisma.channelMembership.findFirst({
+      where: {
+        channelId,
+        userId
+      }
+    })
 
     if (existingMembership) {
-      return NextResponse.json(channel)
+      return NextResponse.json({ success: true })
     }
 
     // Create membership
@@ -74,7 +52,7 @@ export async function POST(req: Request) {
       }
     })
 
-    return NextResponse.json(channel)
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error joining channel:', error)
     return NextResponse.json(

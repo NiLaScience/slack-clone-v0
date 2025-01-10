@@ -73,7 +73,10 @@ export function Sidebar({
     })
 
   const dmChannels = channels
-    .filter(channel => channel.isDM)
+    .filter(channel => {
+      // Only show DM channels where the current user is a member
+      return channel.isDM && (channel.memberIds || []).includes(currentUserId);
+    })
     .sort((a, b) => {
       // Notes to self goes first
       if (a.isSelfNote) return -1

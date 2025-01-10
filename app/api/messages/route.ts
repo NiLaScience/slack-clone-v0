@@ -18,6 +18,21 @@ export async function POST(req: Request) {
     const body = await req.json()
     const { content, channelId, parentMessageId, attachments } = body
 
+    // Check if user is a member of the channel
+    const membership = await prisma.channelMembership.findFirst({
+      where: {
+        channelId,
+        userId
+      }
+    })
+
+    if (!membership) {
+      return new NextResponse(
+        JSON.stringify({ error: "You are not a member of this channel" }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
     // Create message
     const message = await prisma.message.create({
       data: {

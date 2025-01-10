@@ -57,15 +57,29 @@ export async function PATCH(
 
     // Get the existing message
     const existingMessage = await prisma.message.findUnique({
-      where: { id: params.messageId }
+      where: { id: params.messageId },
+      include: {
+        channel: {
+          include: {
+            memberships: true
+          }
+        }
+      }
     });
 
     if (!existingMessage) {
       return NextResponse.json({ success: false, error: "Message not found" }, { status: 404 });
     }
 
+    // Check if user is a member of the channel
+    const isMember = existingMessage.channel.memberships.some(m => m.userId === userId);
+    if (!isMember) {
+      return NextResponse.json({ success: false, error: "You are not a member of this channel" }, { status: 403 });
+    }
+
+    // Check if user is the sender
     if (existingMessage.senderId !== userId) {
-      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ success: false, error: "You can only edit your own messages" }, { status: 403 });
     }
 
     // Update the message
@@ -116,7 +130,14 @@ export async function DELETE(
 
     // Get the existing message
     const existingMessage = await prisma.message.findUnique({
-      where: { id: messageId }
+      where: { id: messageId },
+      include: {
+        channel: {
+          include: {
+            memberships: true
+          }
+        }
+      }
     });
 
     console.log("[MESSAGE_DELETE] Found message:", existingMessage);
@@ -129,10 +150,21 @@ export async function DELETE(
       );
     }
 
+    // Check if user is a member of the channel
+    const isMember = existingMessage.channel.memberships.some(m => m.userId === userId);
+    if (!isMember) {
+      console.log("[MESSAGE_DELETE] Forbidden - user is not a channel member");
+      return NextResponse.json(
+        { error: "You are not a member of this channel" },
+        { status: 403 }
+      );
+    }
+
+    // Check if user is the sender
     if (existingMessage.senderId !== userId) {
       console.log("[MESSAGE_DELETE] Forbidden - message sender:", existingMessage.senderId, "requester:", userId);
       return NextResponse.json(
-        { error: "Forbidden" },
+        { error: "You can only delete your own messages" },
         { status: 403 }
       );
     }

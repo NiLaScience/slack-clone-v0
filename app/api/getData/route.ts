@@ -37,24 +37,33 @@ export async function GET(req: NextRequest) {
     }
 
     // Get all data
-    const [channels, messages, users, reactions, channelMemberships] = await Promise.all([
-      prisma.channel.findMany(),
+    const [channels, messages, users, reactions] = await Promise.all([
+      prisma.channel.findMany({
+        include: {
+          memberships: true
+        }
+      }),
       prisma.message.findMany({
         include: {
           attachments: true
         }
       }),
       prisma.user.findMany(),
-      prisma.reaction.findMany(),
-      prisma.channelMembership.findMany()
+      prisma.reaction.findMany()
     ])
 
+    // Transform channels to include memberIds
+    const transformedChannels = channels.map(channel => ({
+      ...channel,
+      memberIds: channel.memberships.map(m => m.userId),
+      memberships: undefined
+    }))
+
     return NextResponse.json({
-      channels,
+      channels: transformedChannels,
       messages,
       users,
-      reactions,
-      channelMemberships
+      reactions
     })
   } catch (error) {
     console.error('Failed to get data:', error)
