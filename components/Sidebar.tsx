@@ -179,12 +179,12 @@ export function Sidebar({
                         {channel.isSelfNote ? (
                           <>
                             <span className="text-xl">{currentUser.avatar || '👤'}</span>
-                            <CircleStatus isOnline={currentUser.isOnline} />
+                            <CircleStatus isOnline={currentUser.isOnline} status={currentUser.status} />
                           </>
                         ) : (
                           <>
                             <span className="text-xl">{otherUser?.avatar || '👤'}</span>
-                            <CircleStatus isOnline={otherUser?.isOnline} />
+                            <CircleStatus isOnline={otherUser?.isOnline} status={otherUser?.status} />
                           </>
                         )}
                       </div>

@@ -39,7 +39,11 @@ export async function GET(req: NextRequest) {
     // Get all data
     const [channels, messages, users, reactions, channelMemberships] = await Promise.all([
       prisma.channel.findMany(),
-      prisma.message.findMany(),
+      prisma.message.findMany({
+        include: {
+          attachments: true
+        }
+      }),
       prisma.user.findMany(),
       prisma.reaction.findMany(),
       prisma.channelMembership.findMany()

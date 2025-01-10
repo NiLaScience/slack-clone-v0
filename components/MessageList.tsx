@@ -127,12 +127,12 @@ export function MessageList({
                 {isSelfNote ? (
                   <>
                     <span className="text-xl">{users.find(u => u.id === currentUserId)?.avatar || '👤'}</span>
-                    <CircleStatus isOnline={users.find(u => u.id === currentUserId)?.isOnline} />
+                    <CircleStatus isOnline={users.find(u => u.id === currentUserId)?.isOnline} status={users.find(u => u.id === currentUserId)?.status} />
                   </>
                 ) : (
                   <>
                     <span className="text-xl">{users.find(u => u.id !== currentUserId)?.avatar || '👤'}</span>
-                    <CircleStatus isOnline={users.find(u => u.id !== currentUserId)?.isOnline} />
+                    <CircleStatus isOnline={users.find(u => u.id !== currentUserId)?.isOnline} status={users.find(u => u.id !== currentUserId)?.status} />
                   </>
                 )}
               </div>
@@ -162,7 +162,7 @@ export function MessageList({
                   title={user.name}
                 >
                   <span className="text-xl">{user.avatar || '👤'}</span>
-                  <CircleStatus isOnline={user.isOnline} />
+                  <CircleStatus isOnline={user.isOnline} status={user.status} />
                 </div>
               ))}
           </div>
@@ -198,7 +198,7 @@ export function MessageList({
                 <div className="flex items-start space-x-2">
                   <div className="relative">
                     <span className="text-2xl">{sender?.avatar}</span>
-                    <CircleStatus isOnline={sender?.isOnline} />
+                    <CircleStatus isOnline={sender?.isOnline} status={sender?.status} />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center">

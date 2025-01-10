@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
 
 const EMOJI_LIST = ["👋", "😊", "🌟", "🎮", "🎨", "🎭", "🎪", "🎯", "🎲", "🎸", "🎺", "🎻", "🎹", "🎼", "🎧", "🎤", "🎬", "📷", "📸", "🎥"];
@@ -31,10 +31,17 @@ export async function GET() {
 export async function POST() {
   try {
     const { userId } = await auth();
+    const user = await currentUser();
     console.log('Creating profile for user:', userId);
     
-    if (!userId) {
+    if (!userId || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const primaryEmail = user.emailAddresses.find(email => email.id === user.primaryEmailAddressId)?.emailAddress;
+    
+    if (!primaryEmail) {
+      return NextResponse.json({ error: "No email found" }, { status: 400 });
     }
 
     // Ensure general channel exists
@@ -66,12 +73,13 @@ export async function POST() {
     const randomEmoji = EMOJI_LIST[Math.floor(Math.random() * EMOJI_LIST.length)];
 
     // Create or update user
-    console.log('Creating/updating user with data:', { userId, randomName, randomEmoji });
-    const user = await prisma.user.upsert({
+    console.log('Creating/updating user with data:', { userId, randomName, randomEmoji, email: primaryEmail });
+    const dbUser = await prisma.user.upsert({
       where: { id: userId },
       create: {
         id: userId,
         name: randomName,
+        email: primaryEmail,
         avatar: randomEmoji,
         status: "online",
         isOnline: true,
@@ -80,16 +88,17 @@ export async function POST() {
       },
       update: {
         name: randomName,
+        email: primaryEmail,
         avatar: randomEmoji,
         status: "online",
         isOnline: true,
         updatedAt: new Date()
       }
     });
-    console.log('Created/updated user:', user);
+    console.log('Created/updated user:', dbUser);
 
     // Create a self-note channel
-    const selfChannelName = `dm_${user.id}`;
+    const selfChannelName = `dm_${dbUser.id}`;
     console.log('Creating self-note channel:', selfChannelName);
     
     // Check if self-note channel already exists
@@ -100,7 +109,7 @@ export async function POST() {
         isSelfNote: true,
         memberships: {
           every: {
-            userId: user.id,
+            userId: dbUser.id,
           },
         },
       },
@@ -114,7 +123,7 @@ export async function POST() {
       console.log('Found existing self-note channel, checking members');
       // Ensure only the owner is a member
       const otherMembers = selfNoteChannel.memberships.filter(
-        (m: { id: string; userId: string }) => m.userId !== user.id
+        (m: { id: string; userId: string }) => m.userId !== dbUser.id
       );
       if (otherMembers.length > 0) {
         console.log('Removing other members:', otherMembers);
@@ -140,7 +149,7 @@ export async function POST() {
           memberships: {
             create: {
               id: `membership_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-              userId: user.id,
+              userId: dbUser.id,
               createdAt: new Date()
             }
           }
@@ -158,13 +167,13 @@ export async function POST() {
       data: {
         id: `membership_${Date.now()}_${Math.random().toString(36).slice(2)}`,
         channelId: generalChannel.id,
-        userId: user.id,
+        userId: dbUser.id,
         createdAt: new Date()
       }
     });
 
     console.log('Successfully created user profile');
-    return NextResponse.json(user);
+    return NextResponse.json(dbUser);
   } catch (error) {
     console.error("Error creating user profile:", {
       error,

@@ -26,6 +26,37 @@ export default function Home() {
       return
     }
 
+    let inactivityTimeout: NodeJS.Timeout
+
+    const resetInactivityTimer = () => {
+      clearTimeout(inactivityTimeout)
+      inactivityTimeout = setTimeout(async () => {
+        // Only set to Busy if currently Online
+        const currentUser = data?.users.find(u => u.id === userId)
+        if (currentUser?.status === "Online" || !currentUser?.status) {
+          await fetch('/api/users/status', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: "Busy" })
+          })
+        }
+      }, 5 * 60 * 1000) // 5 minutes
+    }
+
+    // Reset timer on user activity
+    const handleActivity = () => {
+      resetInactivityTimer()
+    }
+
+    // Track user activity
+    window.addEventListener('mousemove', handleActivity)
+    window.addEventListener('keydown', handleActivity)
+    window.addEventListener('click', handleActivity)
+    window.addEventListener('scroll', handleActivity)
+
+    // Set initial timer
+    resetInactivityTimer()
+
     // Set user as online when they load the page
     fetch('/api/users/online', {
       method: 'PATCH',
@@ -94,7 +125,11 @@ export default function Home() {
     initializeUser();
 
     return () => {
-      clearInterval(pollInterval)
+      clearTimeout(inactivityTimeout)
+      window.removeEventListener('mousemove', handleActivity)
+      window.removeEventListener('keydown', handleActivity)
+      window.removeEventListener('click', handleActivity)
+      window.removeEventListener('scroll', handleActivity)
       window.removeEventListener('beforeunload', handleBeforeUnload)
       // Set user as offline when component unmounts
       fetch('/api/users/online', {
@@ -217,31 +252,49 @@ export default function Home() {
   const handleSendMessage = async (content: string, attachments: File[] = []) => {
     if (!selectedChannelId) return
 
-    // Upload files first
-    const uploadedAttachments = await Promise.all(
-      attachments.map(async (file) => {
-        const formData = new FormData()
-        formData.append('file', file)
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData
+    try {
+      // Upload files first
+      const uploadedAttachments = await Promise.all(
+        attachments.map(async (file) => {
+          const formData = new FormData()
+          formData.append('file', file)
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+          })
+          if (!response.ok) {
+            throw new Error(`Upload failed: ${response.statusText}`)
+          }
+          const data = await response.json()
+          return {
+            filename: data.filename,
+            fileUrl: data.fileUrl,
+            contentType: data.contentType
+          }
         })
-        return response.json()
-      })
-    )
+      )
 
-    // Create message with uploaded file URLs
-    await fetch('/api/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        content, 
-        channelId: selectedChannelId,
-        attachments: uploadedAttachments
+      // Create message with uploaded file URLs
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          content, 
+          channelId: selectedChannelId,
+          attachments: uploadedAttachments
+        })
       })
-    })
-    const newData = await fetch('/api/getData').then(res => res.json())
-    setData(newData)
+
+      if (!response.ok) {
+        throw new Error(`Message creation failed: ${response.statusText}`)
+      }
+
+      const newData = await fetch('/api/getData').then(res => res.json())
+      setData(newData)
+    } catch (error) {
+      console.error('Error sending message:', error)
+      // You might want to add error handling UI here
+    }
   }
 
   const handleCreateChannel = async (name: string, isPrivate: boolean) => {
@@ -512,32 +565,50 @@ export default function Home() {
                 onEditMessage={handleEditMessage}
                 onDeleteMessage={handleDeleteMessage}
                 onReply={async (content, attachments, parentId) => {
-                  // Upload files first
-                  const uploadedAttachments = await Promise.all(
-                    attachments.map(async (file) => {
-                      const formData = new FormData()
-                      formData.append('file', file)
-                      const response = await fetch('/api/upload', {
-                        method: 'POST',
-                        body: formData
+                  try {
+                    // Upload files first
+                    const uploadedAttachments = await Promise.all(
+                      attachments.map(async (file) => {
+                        const formData = new FormData()
+                        formData.append('file', file)
+                        const response = await fetch('/api/upload', {
+                          method: 'POST',
+                          body: formData
+                        })
+                        if (!response.ok) {
+                          throw new Error(`Upload failed: ${response.statusText}`)
+                        }
+                        const data = await response.json()
+                        return {
+                          filename: data.filename,
+                          fileUrl: data.fileUrl,
+                          contentType: data.contentType
+                        }
                       })
-                      return response.json()
-                    })
-                  )
+                    )
 
-                  // Create message with uploaded file URLs
-                  await fetch('/api/messages', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                      content, 
-                      channelId: selectedChannelId!,
-                      parentMessageId: parentId,
-                      attachments: uploadedAttachments
+                    // Create message with uploaded file URLs
+                    const response = await fetch('/api/messages', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ 
+                        content, 
+                        channelId: selectedChannelId!,
+                        parentMessageId: parentId,
+                        attachments: uploadedAttachments
+                      })
                     })
-                  })
-                  const newData = await fetch('/api/getData').then(res => res.json())
-                  setData(newData)
+
+                    if (!response.ok) {
+                      throw new Error(`Message creation failed: ${response.statusText}`)
+                    }
+
+                    const newData = await fetch('/api/getData').then(res => res.json())
+                    setData(newData)
+                  } catch (error) {
+                    console.error('Error sending reply:', error)
+                    // You might want to add error handling UI here
+                  }
                 }}
               />
             )
