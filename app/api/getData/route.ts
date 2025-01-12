@@ -55,8 +55,7 @@ export async function GET(req: NextRequest) {
     // Transform channels to include memberIds
     const transformedChannels = channels.map(channel => ({
       ...channel,
-      memberIds: channel.memberships.map(m => m.userId),
-      memberships: undefined
+      memberIds: channel.memberships.map(m => m.userId)
     }))
 
     return NextResponse.json({
