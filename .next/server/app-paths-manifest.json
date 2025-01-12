@@ -1,8 +1,7 @@
 {
-  "/api/users/online/route": "app/api/users/online/route.js",
-  "/api/users/profile/create/route": "app/api/users/profile/create/route.js",
   "/api/getData/route": "app/api/getData/route.js",
   "/api/users/heartbeat/route": "app/api/users/heartbeat/route.js",
-  "/sign-in/[[...sign-in]]/page": "app/sign-in/[[...sign-in]]/page.js",
+  "/api/users/status/route": "app/api/users/status/route.js",
+  "/api/users/online/route": "app/api/users/online/route.js",
   "/page": "app/page.js"
 }
