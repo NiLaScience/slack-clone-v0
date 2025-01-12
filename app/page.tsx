@@ -20,6 +20,44 @@ export default function Home() {
     reactions: Reaction[]
   } | null>(null)
 
+  const normalizeDataForComparison = (data: any) => {
+    return {
+      messages: data.messages.map((m: any) => ({
+        id: m.id,
+        channelId: m.channelId,
+        senderId: m.senderId,
+        content: m.content,
+        parentMessageId: m.parentMessageId,
+        isDeleted: m.isDeleted,
+        // Exclude timestamps
+      })),
+      channels: data.channels.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        isPrivate: c.isPrivate,
+        isDM: c.isDM,
+        isSelfNote: c.isSelfNote,
+        // Exclude timestamps
+      })),
+      users: data.users.map((u: any) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        avatar: u.avatar,
+        status: u.status,
+        isOnline: u.isOnline,
+        // Exclude timestamps
+      })),
+      reactions: data.reactions.map((r: any) => ({
+        id: r.id,
+        messageId: r.messageId,
+        userId: r.userId,
+        emoji: r.emoji,
+        // Exclude timestamps
+      }))
+    }
+  }
+
   useEffect(() => {
     if (!userId) {
       redirect('/sign-in')
@@ -122,11 +160,16 @@ export default function Home() {
         if (dataRes.ok) {
           const newData = await dataRes.json()
           setData(prevData => {
-            // Only update if there are actual changes
-            if (JSON.stringify(prevData) !== JSON.stringify(newData)) {
-              return newData
-            }
-            return prevData
+            if (!prevData) return newData
+            
+            // Normalize data before comparison
+            const normalizedPrev = normalizeDataForComparison(prevData)
+            const normalizedNew = normalizeDataForComparison(newData)
+            
+            // Compare normalized data
+            const hasChanged = JSON.stringify(normalizedPrev) !== JSON.stringify(normalizedNew)
+            
+            return hasChanged ? newData : prevData
           })
         }
       } catch (error) {
@@ -603,9 +646,10 @@ export default function Home() {
               onDeleteMessage={handleDeleteMessage}
               onSendMessage={handleSendMessage}
               onReply={handleOpenThread}
-              channelName={data.channels.find(c => c.id === selectedChannelId)?.name}
-              isDM={data.channels.find(c => c.id === selectedChannelId)?.isDM}
-              isSelfNote={data.channels.find(c => c.id === selectedChannelId)?.isSelfNote}
+              channelName={selectedChannel?.name}
+              isDM={selectedChannel?.isDM}
+              isSelfNote={selectedChannel?.isSelfNote}
+              memberships={selectedChannel?.memberships}
             />
           )}
           {selectedThreadId && (() => {

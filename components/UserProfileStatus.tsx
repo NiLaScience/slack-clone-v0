@@ -98,6 +98,14 @@ export function UserProfileStatus({ user, onSetUserStatus, onSetUserAvatar, onSe
     setOpen(newOpen)
   }
 
+  const censorEmail = (email: string) => {
+    const [username, domain] = email.split('@')
+    const censoredUsername = username.charAt(0) + '*'.repeat(username.length - 2) + username.charAt(username.length - 1)
+    const [domainName, tld] = domain.split('.')
+    const censoredDomain = domainName.charAt(0) + '*'.repeat(domainName.length - 2) + domainName.charAt(domainName.length - 1)
+    return `${censoredUsername}@${censoredDomain}.${tld}`
+  }
+
   return (
     <div className="flex items-center gap-2">
       <Popover open={open} onOpenChange={handleOpenChange}>
@@ -192,7 +200,7 @@ export function UserProfileStatus({ user, onSetUserStatus, onSetUserAvatar, onSe
             {/* Email section */}
             <div className="space-y-2">
               <Label>Email</Label>
-              <p className="text-sm text-gray-500">{user.email}</p>
+              <p className="text-sm text-gray-500">{censorEmail(user.email)}</p>
             </div>
 
             <Separator />

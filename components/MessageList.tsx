@@ -36,6 +36,7 @@ interface MessageListProps {
   channelId?: string;
   isDM?: boolean;
   isSelfNote?: boolean;
+  memberships?: { userId: string }[];
 }
 
 export function MessageList({ 
@@ -52,7 +53,8 @@ export function MessageList({
   channelName,
   channelId,
   isDM,
-  isSelfNote
+  isSelfNote,
+  memberships
 }: MessageListProps) {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
 
@@ -141,9 +143,9 @@ export function MessageList({
             )}
             <h2 className="text-xl font-semibold">
               {isDM ? getChannelDisplayName({ 
-                name: channelName, 
-                isDM, 
-                memberIds: messages.map(m => m.senderId).filter((id, i, arr) => arr.indexOf(id) === i)
+                name: channelName || '', 
+                isDM: true, 
+                memberIds: (memberships || []).map(m => m.userId)
               }, currentUserId, users) : channelName}
             </h2>
           </div>
