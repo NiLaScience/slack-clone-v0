@@ -70,7 +70,8 @@ export async function POST(req: Request) {
       handleBotResponse({
         id: message.id,
         content: message.content,
-        channelId: message.channelId
+        channelId: message.channelId,
+        senderId: message.senderId
       }).catch(error => {
         console.error('[MESSAGE] Error handling bot response:', error);
       });

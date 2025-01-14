@@ -7,15 +7,31 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function handleBotResponse(message: { id: string, content: string, channelId: string }) {
+interface BotResponseParams {
+  id: string;
+  content: string;
+  channelId: string;
+  senderId: string;
+}
+
+export async function handleBotResponse(message: BotResponseParams) {
   try {
     console.log('[BOT] Starting response generation for message:', message.id);
 
-    // Get channel prompt
+    // Get channel info
     const channel = await prisma.channel.findUnique({
-      where: { id: message.channelId }
+      where: { id: message.channelId },
+      include: {
+        memberships: true
+      }
     });
-    const channelPrompt = channel?.prompt || "You are a helpful assistant in a Slack-like chat. Keep responses concise and conversational.";
+
+    if (!channel) {
+      console.error('[BOT] Channel not found:', message.channelId);
+      return;
+    }
+
+    const channelPrompt = channel.prompt || "You are a helpful assistant in a Slack-like chat. Keep responses concise and conversational.";
     console.log('[BOT] Using channel prompt:', channelPrompt);
 
     console.log('[BOT] Querying Pinecone for context with:', {
@@ -54,13 +70,24 @@ export async function handleBotResponse(message: { id: string, content: string, 
     }
 
     console.log('[BOT] Creating message in database');
+
+    // For DMs, get the other user's ID to post as them
+    let senderId = BOT_USER_ID;
+    if (channel.isDM) {
+      // Get the ID of the user who didn't send the original message
+      const otherUserId = channel.memberships.find(m => m.userId !== message.senderId)?.userId;
+      if (otherUserId) {
+        senderId = otherUserId;
+      }
+    }
+
     // Create bot's response message
     await prisma.message.create({
       data: {
         id: `msg_${Date.now()}_${Math.random().toString(36).slice(2)}`,
         content: botResponse,
         channelId: message.channelId,
-        senderId: BOT_USER_ID,
+        senderId: senderId,
         parentMessageId: message.id, // Link to the original message
         createdAt: new Date(),
         updatedAt: new Date(),
