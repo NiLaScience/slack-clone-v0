@@ -89,9 +89,10 @@ export async function initBotUser() {
           id: BOT_USER_ID,
           name: 'Bot',
           email: 'bot@example.com',
-          avatar: null,
+          avatar: '🤖',
           status: 'online',
           isOnline: true,
+          isBot: true,
           createdAt: new Date(),
           updatedAt: new Date(),
         }
@@ -99,10 +100,15 @@ export async function initBotUser() {
       console.log('[BOT] Bot user created');
     }
 
-    // Get all channels
-    const channels = await prisma.channel.findMany();
+    // Get only public channels (not DMs or private channels)
+    const channels = await prisma.channel.findMany({
+      where: {
+        isDM: false,
+        isPrivate: false,
+      }
+    });
 
-    // Add bot to all channels it's not already in
+    // Add bot to all public channels it's not already in
     for (const channel of channels) {
       const membership = await prisma.channelMembership.findFirst({
         where: {
@@ -112,7 +118,7 @@ export async function initBotUser() {
       });
 
       if (!membership) {
-        console.log(`[BOT] Adding bot to channel: ${channel.name}`);
+        console.log(`[BOT] Adding bot to public channel: ${channel.name}`);
         await prisma.channelMembership.create({
           data: {
             id: `bot_membership_${channel.id}`,

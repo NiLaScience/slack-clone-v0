@@ -20,6 +20,7 @@ model User {
   avatar      String?
   status      String?
   isOnline    Boolean             @default(false)
+  isBot       Boolean             @default(false)
   lastActiveAt DateTime @default(now())
   createdAt   DateTime
   updatedAt   DateTime

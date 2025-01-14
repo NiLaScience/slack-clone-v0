@@ -110,13 +110,16 @@ export async function embedMessage(
 }
 
 export async function queryMessages(query: string, channelId?: string) {
+  console.warn('[RAG] Starting query with:', { query, channelId });
   const { index, embedder } = await initClients();
   
   // Generate query embedding
   const queryEmbedding = await embedder.embedQuery(query);
+  console.warn('[RAG] Generated query embedding');
   
   // Prepare filter if channelId is provided
   const filter = channelId ? { channelId } : undefined;
+  console.warn('[RAG] Using filter:', filter);
   
   // Query Pinecone
   const results = await index.query({
@@ -124,6 +127,11 @@ export async function queryMessages(query: string, channelId?: string) {
     filter,
     topK: 5,
     includeMetadata: true,
+  });
+  
+  console.warn('[RAG] Got results:', {
+    totalResults: results.matches?.length || 0,
+    channelMatches: results.matches?.filter(m => m.metadata?.channelId === channelId).length || 0
   });
   
   return results.matches?.map(match => ({
