@@ -2,6 +2,9 @@ import { embedAndStore } from "./rag"
 import { prisma } from "./db"
 import pdfParse from "pdf-parse"
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter"
+import { initPinecone } from "./rag"
+import { OpenAIEmbeddings } from "@langchain/openai"
+import { promises as fs } from "fs"
 
 interface MessageWithChannel {
   id: string
@@ -63,48 +66,81 @@ export async function embedMessage(messageId: string) {
  * Embed a PDF attachment
  */
 export async function embedPDFAttachment(attachmentId: string) {
-  // Get attachment data
-  const attachment = await prisma.attachment.findUnique({
-    where: { id: attachmentId },
-    include: {
-      message: {
-        include: {
-          channel: true
-        }
-      }
-    }
-  })
-
-  if (!attachment || attachment.hasEmbedding || !attachment.contentType.includes('pdf')) return
-
   try {
-    // Download and parse PDF
-    const response = await fetch(attachment.fileUrl)
-    const buffer = await response.arrayBuffer()
-    const pdfData = await pdfParse(Buffer.from(buffer))
+    const attachment = await prisma.attachment.findUnique({
+      where: { id: attachmentId }
+    })
+    if (!attachment) {
+      throw new Error(`Attachment ${attachmentId} not found`)
+    }
+
+    const message = await prisma.message.findUnique({
+      where: { id: attachment.messageId }
+    })
+    if (!message) {
+      throw new Error(`Message ${attachment.messageId} not found`)
+    }
+
+    const channel = await prisma.channel.findUnique({
+      where: { id: message.channelId }
+    })
+    if (!channel) {
+      throw new Error(`Channel ${message.channelId} not found`)
+    }
+
+    // Read the PDF file using fs.readFile
+    const filePath = attachment.fileUrl.replace(/^file:\/\//, '')
+    const pdfBuffer = await fs.readFile(filePath)
+    const pdfData = await pdfParse(pdfBuffer)
+    const text = pdfData.text
 
     // Split text into chunks
-    const chunks = await textSplitter.splitText(pdfData.text)
+    const textSplitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 1000,
+      chunkOverlap: 200,
+      separators: ["\n\n", "\n", " ", ""]
+    })
+    const chunks = await textSplitter.createDocuments([text])
 
-    // Store embeddings
-    await embedAndStore({
-      textChunks: chunks,
-      metadata: {
-        type: "attachment",
-        attachmentId: attachment.id,
-        messageId: attachment.messageId,
-        channelId: attachment.message.channelId,
-        isDM: attachment.message.channel.isDM,
-        filename: attachment.filename,
-        createdAt: attachment.createdAt.toISOString(),
-      },
+    // Initialize OpenAI embeddings
+    const embeddings = new OpenAIEmbeddings({
+      modelName: "text-embedding-3-large",
+      dimensions: 3072,
+      stripNewLines: false
     })
 
-    // Mark as embedded
+    // Initialize Pinecone
+    const pinecone = await initPinecone()
+
+    // Embed and store chunks
+    const records = await Promise.all(
+      chunks.map(async (chunk, i) => {
+        const embedding = await embeddings.embedQuery(chunk.pageContent)
+        return {
+          id: `${attachmentId}_chunk_${i}`,
+          metadata: {
+            text: chunk.pageContent,
+            messageId: message.id,
+            channelId: message.channelId,
+            isDM: channel.isDM,
+            type: "pdf",
+            filename: attachment.filename
+          },
+          values: embedding
+        }
+      })
+    )
+
+    // Upsert records to Pinecone
+    await pinecone.upsert(records)
+
+    // Update attachment status
     await prisma.attachment.update({
       where: { id: attachmentId },
       data: { hasEmbedding: true }
     })
+
+    return true
   } catch (error) {
     console.error(`Failed to embed PDF ${attachmentId}:`, error)
     throw error
