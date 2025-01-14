@@ -1531,12 +1531,6 @@ video {
 .min-h-svh {
   min-height: 100svh;
 }
-.min-h-\[100px\] {
-  min-height: 100px;
-}
-.min-h-\[200px\] {
-  min-height: 200px;
-}
 .w-0 {
   width: 0px;
 }
