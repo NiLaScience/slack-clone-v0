@@ -1,6 +1,47 @@
 import { prisma } from './db';
+import OpenAI from 'openai';
 
 const BOT_USER_ID = 'bot_user';
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+export async function handleBotResponse(message: { id: string, content: string, channelId: string }) {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4-0125-preview",
+      messages: [
+        { 
+          role: "system", 
+          content: "You are a helpful assistant in a Slack-like chat. Keep responses concise and conversational." 
+        },
+        { 
+          role: "user", 
+          content: message.content 
+        }
+      ],
+    });
+
+    const botResponse = response.choices[0]?.message?.content;
+    if (!botResponse) return;
+
+    // Create bot's response message
+    await prisma.message.create({
+      data: {
+        id: `msg_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        content: botResponse,
+        channelId: message.channelId,
+        senderId: BOT_USER_ID,
+        parentMessageId: message.id, // Link to the original message
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+    });
+
+  } catch (error) {
+    console.error('[BOT] Error generating response:', error);
+  }
+}
 
 export async function initBotUser() {
   try {

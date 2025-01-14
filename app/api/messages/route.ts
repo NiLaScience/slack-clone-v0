@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
 import { embedMessage } from '@/lib/rag'
 import { processPdfAttachment } from '@/lib/pdf'
+import { handleBotResponse } from '@/lib/bot'
 
 type AttachmentInput = {
   filename: string
@@ -62,6 +63,18 @@ export async function POST(req: Request) {
         channel: true
       }
     })
+
+    // Handle bot response if askBot is true
+    if (askBot) {
+      // Process bot response in the background
+      handleBotResponse({
+        id: message.id,
+        content: message.content,
+        channelId: message.channelId
+      }).catch(error => {
+        console.error('[MESSAGE] Error handling bot response:', error);
+      });
+    }
 
     // Only try to embed if it's not a self-note
     if (!message.channel.isSelfNote) {
