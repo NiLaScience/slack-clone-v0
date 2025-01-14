@@ -17,8 +17,9 @@ export interface Channel {
   isSelfNote: boolean;
   createdAt: Date;
   updatedAt: Date;
+  memberships?: { userId: string }[];
   memberIds?: string[];
-  memberships?: ChannelMembership[];
+  systemPrompt?: string;
 }
 
 export interface ChannelMembership {

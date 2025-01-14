@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
+import { embedPDFAttachment } from '@/lib/embeddings'
 
 const s3Client = new S3Client({
   region: process.env.S3_REGION,
@@ -41,6 +42,10 @@ export async function POST(req: Request) {
 
     // Generate the S3 URL
     const fileUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.S3_REGION}.amazonaws.com/${key}`
+
+    // Note: We can't embed the PDF here since we don't have the attachment ID yet
+    // The message creation endpoint will create the attachment record
+    // Then the message embedding process will handle embedding any PDF attachments
     
     return NextResponse.json({ 
       filename: file.name,

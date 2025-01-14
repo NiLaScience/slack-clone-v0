@@ -3,7 +3,7 @@ import { Message, User, Reaction } from "@/types/dataStructures"
 import { ReactionPicker } from "./ReactionPicker"
 import { FileAttachment } from "./FileAttachment"
 import { CircleStatus } from "@/components/ui/circle-status"
-import { MoreHorizontal, Pencil, Trash2, Hash, Users } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2, Hash, Users, Settings } from "lucide-react"
 import { getChannelDisplayName } from "@/lib/utils"
 import {
   DropdownMenu,
@@ -20,6 +20,14 @@ import {
 import { useState } from "react"
 import { MessageInput } from "./MessageInput"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 
 interface MessageListProps {
   messages: Message[];
@@ -37,6 +45,7 @@ interface MessageListProps {
   isDM?: boolean;
   isSelfNote?: boolean;
   memberships?: { userId: string }[];
+  systemPrompt?: string;
 }
 
 export function MessageList({ 
@@ -54,9 +63,12 @@ export function MessageList({
   channelId,
   isDM,
   isSelfNote,
-  memberships
+  memberships,
+  systemPrompt
 }: MessageListProps) {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [isEditingSystemPrompt, setIsEditingSystemPrompt] = useState(false);
+  const [tempSystemPrompt, setTempSystemPrompt] = useState(systemPrompt || '');
 
   const getReactionCounts = (messageId: string) => {
     return reactions
@@ -149,24 +161,82 @@ export function MessageList({
               }, currentUserId, users) : channelName}
             </h2>
           </div>
-          
-          {/* Member List */}
-          <div className="flex items-center -space-x-2">
-            {messages
-              .map(m => m.senderId)
-              .filter((id, i, arr) => arr.indexOf(id) === i) // Get unique senderIds
-              .map(userId => users.find(u => u.id === userId))
-              .filter((user): user is NonNullable<typeof user> => user !== undefined)
-              .map((user) => (
-                <div 
-                  key={user.id} 
-                  className="relative w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full ring-2 ring-white"
-                  title={user.name}
-                >
-                  <span className="text-xl">{user.avatar || '👤'}</span>
-                  <CircleStatus isOnline={user.isOnline} status={user.status} />
-                </div>
-              ))}
+
+          <div className="flex items-center gap-4">
+            {/* Member List */}
+            <div className="flex items-center -space-x-2">
+              {messages
+                .map(m => m.senderId)
+                .filter((id, i, arr) => arr.indexOf(id) === i) // Get unique senderIds
+                .map(userId => users.find(u => u.id === userId))
+                .filter((user): user is NonNullable<typeof user> => user !== undefined)
+                .map((user) => (
+                  <div 
+                    key={user.id} 
+                    className="relative w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full ring-2 ring-white"
+                    title={user.name}
+                  >
+                    <span className="text-xl">{user.avatar || '👤'}</span>
+                    <CircleStatus isOnline={user.isOnline} status={user.status} />
+                  </div>
+                ))}
+            </div>
+
+            {/* Channel Settings */}
+            {!isDM && (
+              <Dialog open={isEditingSystemPrompt} onOpenChange={setIsEditingSystemPrompt}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="hover:bg-accent">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Channel Bot Settings</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">System Prompt</label>
+                      <Textarea
+                        value={tempSystemPrompt}
+                        onChange={(e) => setTempSystemPrompt(e.target.value)}
+                        placeholder="Enter a system prompt for the channel bot..."
+                        className="min-h-[200px]"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          setTempSystemPrompt(systemPrompt || '')
+                          setIsEditingSystemPrompt(false)
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="default"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/channels/${channelId}/system-prompt`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ systemPrompt: tempSystemPrompt })
+                            })
+                            if (!res.ok) throw new Error('Failed to update system prompt')
+                            setIsEditingSystemPrompt(false)
+                          } catch (error) {
+                            console.error('Failed to update system prompt:', error)
+                          }
+                        }}
+                      >
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
       )}

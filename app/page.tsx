@@ -650,6 +650,7 @@ export default function Home() {
               isDM={selectedChannel?.isDM}
               isSelfNote={selectedChannel?.isSelfNote}
               memberships={selectedChannel?.memberships}
+              systemPrompt={selectedChannel?.systemPrompt}
             />
           )}
           {selectedThreadId && (() => {

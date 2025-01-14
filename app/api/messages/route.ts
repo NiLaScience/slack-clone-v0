@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
+import { embedMessage, embedPDFAttachment } from '@/lib/embeddings'
+import { handleBotResponse } from '@/lib/bot'
 
 type AttachmentInput = {
   filename: string
@@ -52,8 +54,52 @@ export async function POST(req: Request) {
         } : undefined
       },
       include: {
-        attachments: true
+        attachments: true,
+        channel: true
       }
+    })
+
+    // Handle embeddings and bot responses in parallel
+    const promises: Promise<any>[] = []
+
+    // Embed the message and any PDF attachments in background
+    if (!message.channel.isSelfNote) {
+      // Embed message content
+      promises.push(
+        embedMessage(message.id).catch(error => {
+          console.error('Failed to embed message:', error)
+        })
+      )
+
+      // Embed PDF attachments
+      message.attachments
+        .filter(att => att.contentType.includes('pdf'))
+        .forEach(pdf => {
+          promises.push(
+            embedPDFAttachment(pdf.id).catch(error => {
+              console.error(`Failed to embed PDF ${pdf.id}:`, error)
+            })
+          )
+        })
+    }
+
+    // Check for bot mentions and generate response
+    if (/@(channel-bot|[\w-]+-bot)/.test(content)) {
+      promises.push(
+        handleBotResponse(
+          message.id,
+          content,
+          channelId,
+          message.channel.isDM
+        ).catch(error => {
+          console.error('Failed to generate bot response:', error)
+        })
+      )
+    }
+
+    // Fire off all background tasks
+    Promise.all(promises).catch(error => {
+      console.error('Background task error:', error)
     })
 
     return NextResponse.json(message)

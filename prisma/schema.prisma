@@ -23,6 +23,7 @@ model User {
   lastActiveAt DateTime @default(now())
   createdAt   DateTime
   updatedAt   DateTime
+  systemPrompt String?
   // A user can have many messages and many reactions
   messages    Message[]
   reactions   Reaction[]
@@ -37,6 +38,7 @@ model Channel {
   isSelfNote  Boolean             @default(false)
   createdAt   DateTime
   updatedAt   DateTime
+  systemPrompt String?
   // A channel can have many messages
   messages    Message[]
   // ChannelMembership links many users to many channels
@@ -62,6 +64,7 @@ model Message {
   content         String
   parentMessageId String? // For threaded replies
   isDeleted       Boolean  @default(false)
+  hasEmbedding    Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   editedAt        DateTime?
@@ -92,6 +95,7 @@ model Attachment {
   fileUrl     String
   contentType String
   createdAt   DateTime
+  hasEmbedding Boolean  @default(false)
 
   message Message @relation(fields: [messageId], references: [id])
 }
