@@ -1,12 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
 export async function PATCH(
-  request: Request,
-  { params }: { params: { channelId: string } }
+  request: NextRequest,
+  context: { params: { channelId: string } }
 ) {
   try {
-    const { channelId } = params;
+    const { channelId } = context.params;
     const { prompt } = await request.json();
 
     // Update channel prompt
