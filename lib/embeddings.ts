@@ -3,6 +3,16 @@ import { prisma } from "./db"
 import pdfParse from "pdf-parse"
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter"
 
+interface MessageWithChannel {
+  id: string
+  content: string
+  channelId: string
+  senderId: string
+  hasEmbedding: boolean
+  createdAt: Date
+  channel_isDM: boolean
+}
+
 const textSplitter = new RecursiveCharacterTextSplitter({
   chunkSize: 1000,
   chunkOverlap: 200,
@@ -15,22 +25,25 @@ const textSplitter = new RecursiveCharacterTextSplitter({
  */
 export async function embedMessage(messageId: string) {
   // Use raw query to get message with hasEmbedding field
-  const [message] = await prisma.$queryRaw<Array<{
-    id: string
-    content: string
-    channelId: string
-    senderId: string
-    hasEmbedding: boolean
-    createdAt: Date
-    channel: { isDM: boolean }
-  }>>`
-    SELECT m.*, c.* 
+  const result = await prisma.$queryRaw<MessageWithChannel[]>`
+    SELECT 
+      m.id,
+      m.content,
+      m."channelId",
+      m."senderId",
+      m."hasEmbedding",
+      m."createdAt",
+      c."isDM" as "channel_isDM"
     FROM "Message" m
     JOIN "Channel" c ON c.id = m."channelId"
     WHERE m.id = ${messageId}
-  `
+  `;
   
-  if (!message || message.hasEmbedding) return
+  if (!result || result.length === 0) return
+  
+  const message = result[0]
+  
+  if (message.hasEmbedding) return
   
   const chunks = await textSplitter.splitText(message.content)
   await embedAndStore({
@@ -40,45 +53,40 @@ export async function embedMessage(messageId: string) {
       messageId: message.id,
       channelId: message.channelId,
       senderId: message.senderId,
-      isDM: message.channel.isDM,
+      isDM: message.channel_isDM,
       createdAt: message.createdAt.toISOString(),
     },
   })
 }
 
 /**
- * Process and embed PDF attachment
+ * Embed a PDF attachment
  */
 export async function embedPDFAttachment(attachmentId: string) {
-  // Use raw query to get attachment with hasEmbedding field
-  const [attachment] = await prisma.$queryRaw<Array<{
-    id: string
-    messageId: string
-    fileUrl: string
-    contentType: string
-    hasEmbedding: boolean
-    createdAt: Date
-    message: {
-      channelId: string
-      senderId: string
-      channel: { isDM: boolean }
+  // Get attachment data
+  const attachment = await prisma.attachment.findUnique({
+    where: { id: attachmentId },
+    include: {
+      message: {
+        include: {
+          channel: true
+        }
+      }
     }
-  }>>`
-    SELECT a.*, m.*, c.*
-    FROM "Attachment" a
-    JOIN "Message" m ON m.id = a."messageId"
-    JOIN "Channel" c ON c.id = m."channelId"
-    WHERE a.id = ${attachmentId}
-  `
-  
-  if (!attachment || attachment.hasEmbedding || !attachment.contentType.includes("pdf")) return
-  
+  })
+
+  if (!attachment || attachment.hasEmbedding || !attachment.contentType.includes('pdf')) return
+
   try {
+    // Download and parse PDF
     const response = await fetch(attachment.fileUrl)
     const buffer = await response.arrayBuffer()
-    const pdfData = await pdfParse(buffer)
+    const pdfData = await pdfParse(Buffer.from(buffer))
+
+    // Split text into chunks
     const chunks = await textSplitter.splitText(pdfData.text)
-    
+
+    // Store embeddings
     await embedAndStore({
       textChunks: chunks,
       metadata: {
@@ -86,13 +94,19 @@ export async function embedPDFAttachment(attachmentId: string) {
         attachmentId: attachment.id,
         messageId: attachment.messageId,
         channelId: attachment.message.channelId,
-        senderId: attachment.message.senderId,
         isDM: attachment.message.channel.isDM,
+        filename: attachment.filename,
         createdAt: attachment.createdAt.toISOString(),
       },
     })
+
+    // Mark as embedded
+    await prisma.attachment.update({
+      where: { id: attachmentId },
+      data: { hasEmbedding: true }
+    })
   } catch (error) {
-    console.error("Failed to process PDF:", error)
+    console.error(`Failed to embed PDF ${attachmentId}:`, error)
     throw error
   }
 }

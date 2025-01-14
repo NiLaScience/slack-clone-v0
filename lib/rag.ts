@@ -14,11 +14,14 @@ export interface EmbeddingMetadata {
   score?: number
 }
 
-const pinecone = new Pinecone()
-
 // Initialize Pinecone client
-export const initPinecone = async () => {
-  return pinecone.Index(process.env.PINECONE_INDEX_NAME!)
+export async function initPinecone() {
+  const pinecone = new Pinecone({
+    apiKey: process.env.PINECONE_API_KEY!
+  })
+
+  const index = pinecone.index(process.env.PINECONE_PROJECT_NAME!)
+  return index
 }
 
 /**

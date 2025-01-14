@@ -5,31 +5,39 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Edit2, Check, X, Pencil } from 'lucide-react'
+import { Edit2, Check, X } from 'lucide-react'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react'
 import { Textarea } from "@/components/ui/textarea"
 
-interface UserProfileStatusProps {
-  user: User;
-  onSetUserStatus: (status: string) => void;
-  onSetUserAvatar: (avatar: string) => void;
-  onSetUserName: (name: string) => void;
+type UserProfileStatusProps = {
+  user: {
+    id: string
+    name: string
+    email: string
+    avatar?: string
+    status?: string
+    isOnline?: boolean
+    systemPrompt?: string
+  }
+  onSetUserStatus: (newStatus: string) => void
+  onSetUserAvatar: (newEmoji: string) => void
+  onSetUserName: (newName: string) => void
 }
 
 const predefinedStatuses = ['Online', 'Busy', 'Away', 'Custom']
 const emojiOptions = ['😀','😎','👾','🐱','🐶','🍀','🐸','🔥','🚀','❤️']
 
 export function UserProfileStatus({ user, onSetUserStatus, onSetUserAvatar, onSetUserName }: UserProfileStatusProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [editingStatus, setEditingStatus] = useState(false);
-  const [editingAvatar, setEditingAvatar] = useState(false);
-  const [editingName, setEditingName] = useState(false);
-  const [editingSystemPrompt, setEditingSystemPrompt] = useState(false);
-  const [tempStatus, setTempStatus] = useState(user.status || '');
-  const [tempAvatar, setTempAvatar] = useState(user.avatar || '');
-  const [tempName, setTempName] = useState(user.name || '');
-  const [tempSystemPrompt, setTempSystemPrompt] = useState(user.systemPrompt || '');
+  const [open, setOpen] = useState(false)
+  const [isCustom, setIsCustom] = useState(false)
+  const [customStatus, setCustomStatus] = useState('')
+  const [editName, setEditName] = useState(false)
+  const [tempName, setTempName] = useState(user.name)
+  const [editStatus, setEditStatus] = useState(false)
+  const [tempStatus, setTempStatus] = useState('')
+  const [editSystemPrompt, setEditSystemPrompt] = useState(false)
+  const [tempSystemPrompt, setTempSystemPrompt] = useState('')
 
   useEffect(() => {
     if (user.status && !predefinedStatuses.includes(user.status)) {
@@ -282,20 +290,21 @@ export function UserProfileStatus({ user, onSetUserStatus, onSetUserAvatar, onSe
 
             <Separator />
 
-            {/* System Prompt */}
+            {/* Bot Settings section */}
             <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-medium">Bot Settings</label>
+              <div className="flex items-center justify-between">
+                <Label>Bot System Prompt</Label>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setEditingSystemPrompt(!editingSystemPrompt)}
+                  className="h-8 px-2"
+                  onClick={() => setEditSystemPrompt(true)}
                 >
-                  <Pencil className="h-4 w-4" />
+                  <Edit2 className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="space-y-2">
-                {editingSystemPrompt ? (
+              <div className="grid gap-2">
+                {editSystemPrompt ? (
                   <div className="space-y-2">
                     <Textarea
                       value={tempSystemPrompt}
@@ -306,15 +315,17 @@ export function UserProfileStatus({ user, onSetUserStatus, onSetUserAvatar, onSe
                     <div className="flex justify-end gap-2">
                       <Button
                         variant="ghost"
+                        size="sm"
                         onClick={() => {
                           setTempSystemPrompt(user.systemPrompt || '')
-                          setEditingSystemPrompt(false)
+                          setEditSystemPrompt(false)
                         }}
                       >
                         Cancel
                       </Button>
                       <Button
                         variant="default"
+                        size="sm"
                         onClick={async () => {
                           try {
                             const res = await fetch('/api/users/system-prompt', {
@@ -323,7 +334,7 @@ export function UserProfileStatus({ user, onSetUserStatus, onSetUserAvatar, onSe
                               body: JSON.stringify({ systemPrompt: tempSystemPrompt })
                             })
                             if (!res.ok) throw new Error('Failed to update system prompt')
-                            setEditingSystemPrompt(false)
+                            setEditSystemPrompt(false)
                           } catch (error) {
                             console.error('Failed to update system prompt:', error)
                           }

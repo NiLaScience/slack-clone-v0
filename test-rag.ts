@@ -4,8 +4,28 @@ import { prisma } from "./lib/db"
 
 async function testRAG() {
   try {
+    // Clean up any existing test data
+    console.log("Cleaning up existing test data...")
+    await prisma.message.deleteMany({
+      where: {
+        OR: [
+          { id: { startsWith: 'msg_test_' } },
+          { channelId: 'test_channel' }
+        ]
+      }
+    })
+    await prisma.channelMembership.deleteMany({
+      where: { channelId: 'test_channel' }
+    })
+    await prisma.channel.deleteMany({
+      where: { id: 'test_channel' }
+    })
+    await prisma.user.deleteMany({
+      where: { id: 'test_user' }
+    })
+
     // 0. Create test channel and user
-    console.log("Creating test channel and user...")
+    console.log("\nCreating test channel and user...")
     const channel = await prisma.channel.create({
       data: {
         id: "test_channel",
@@ -49,6 +69,22 @@ async function testRAG() {
 
     console.log("Created channel:", channel.id)
     console.log("Created user:", user.id)
+
+    // Create bot user
+    console.log("\nCreating bot user...")
+    const botUser = await prisma.user.create({
+      data: {
+        id: "bot",
+        name: "AI Assistant",
+        email: "bot@example.com",
+        avatar: "🤖",
+        isOnline: true,
+        lastActiveAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+    })
+    console.log("Created bot user:", botUser.id)
 
     // 1. Create a test message
     console.log("\nCreating test message...")
