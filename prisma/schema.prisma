@@ -20,8 +20,6 @@ model User {
   avatar      String?
   status      String?
   isOnline    Boolean             @default(false)
-  isBot       Boolean             @default(false)
-  prompt      String?             @db.Text
   lastActiveAt DateTime @default(now())
   createdAt   DateTime
   updatedAt   DateTime
@@ -37,7 +35,6 @@ model Channel {
   isPrivate   Boolean             @default(false)
   isDM        Boolean             @default(false)
   isSelfNote  Boolean             @default(false)
-  prompt      String?             @db.Text
   createdAt   DateTime
   updatedAt   DateTime
   // A channel can have many messages
@@ -65,7 +62,6 @@ model Message {
   content         String
   parentMessageId String? // For threaded replies
   isDeleted       Boolean  @default(false)
-  askBot          Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   editedAt        DateTime?
