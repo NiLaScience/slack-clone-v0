@@ -2,23 +2,41 @@
 
 import { useAuth } from '@clerk/nextjs'
 import { redirect } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { MessageList } from '@/components/MessageList'
 import { ThreadView } from '@/components/ThreadView'
 import { SearchBar } from '@/components/SearchBar'
 import { Message, Channel, User, Reaction } from '@/types/dataStructures'
 
+type AppData = {
+  messages: Message[]
+  channels: Channel[]
+  users: User[]
+  reactions: Reaction[]
+}
+
 export default function Home() {
   const { userId } = useAuth()
+  const [data, setData] = useState<AppData | null>(null)
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null)
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null)
-  const [data, setData] = useState<{
-    messages: Message[]
-    channels: Channel[]
-    users: User[]
-    reactions: Reaction[]
-  } | null>(null)
+  const [isActive, setIsActive] = useState(true)
+  const inactivityTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
+  const INACTIVITY_TIMEOUT = 5 * 60 * 1000 // 5 minutes
+
+  // Function to update online status
+  const updateOnlineStatus = async (isOnline: boolean) => {
+    try {
+      await fetch('/api/users/online', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isOnline })
+      })
+    } catch (error) {
+      console.error('Failed to update online status:', error)
+    }
+  }
 
   const normalizeDataForComparison = (data: any) => {
     return {
@@ -58,125 +76,8 @@ export default function Home() {
     }
   }
 
+  // Initialize user only once
   useEffect(() => {
-    if (!userId) {
-      redirect('/sign-in')
-      return
-    }
-
-    let inactivityTimeout: NodeJS.Timeout
-
-    const resetInactivityTimer = () => {
-      clearTimeout(inactivityTimeout)
-      inactivityTimeout = setTimeout(async () => {
-        // Only set to Busy if currently Online
-        const currentUser = data?.users.find(u => u.id === userId)
-        if (currentUser?.status === "Online" || !currentUser?.status) {
-          await fetch('/api/users/status', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: "Busy" })
-          })
-        }
-      }, 5 * 60 * 1000) // 5 minutes
-    }
-
-    // Reset timer on user activity
-    const handleActivity = () => {
-      resetInactivityTimer()
-    }
-
-    // Track user activity
-    window.addEventListener('mousemove', handleActivity)
-    window.addEventListener('keydown', handleActivity)
-    window.addEventListener('click', handleActivity)
-    window.addEventListener('scroll', handleActivity)
-
-    // Set initial timer
-    resetInactivityTimer()
-
-    // Function to update online status
-    const updateOnlineStatus = async (isOnline: boolean) => {
-      try {
-        await fetch('/api/users/online', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ isOnline })
-        })
-      } catch (error) {
-        console.error('Failed to update online status:', error)
-      }
-    }
-
-    // Handle page visibility changes
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        updateOnlineStatus(true)
-      } else {
-        updateOnlineStatus(false)
-      }
-    }
-
-    // Handle page unload
-    const handleBeforeUnload = () => {
-      // Try both methods for maximum reliability
-      try {
-        navigator.sendBeacon('/api/users/online', JSON.stringify({ isOnline: false }))
-      } catch (error) {
-        console.error('SendBeacon failed:', error)
-      }
-      
-      // Fallback to fetch
-      try {
-        fetch('/api/users/online', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ isOnline: false }),
-          keepalive: true
-        })
-      } catch (error) {
-        console.error('Fetch fallback failed:', error)
-      }
-    }
-
-    // Set up event listeners
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    window.addEventListener('pagehide', handleBeforeUnload)
-
-    // Set initial online status
-    updateOnlineStatus(true)
-
-    // Set up polling for new data
-    const pollInterval = setInterval(async () => {
-      try {
-        // Send heartbeat first
-        await fetch('/api/users/heartbeat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        })
-
-        const dataRes = await fetch('/api/getData')
-        if (dataRes.ok) {
-          const newData = await dataRes.json()
-          setData(prevData => {
-            if (!prevData) return newData
-            
-            // Normalize data before comparison
-            const normalizedPrev = normalizeDataForComparison(prevData)
-            const normalizedNew = normalizeDataForComparison(newData)
-            
-            // Compare normalized data
-            const hasChanged = JSON.stringify(normalizedPrev) !== JSON.stringify(normalizedNew)
-            
-            return hasChanged ? newData : prevData
-          })
-        }
-      } catch (error) {
-        console.error('Error polling for new data:', error)
-      }
-    }, 3000) // Poll every 3 seconds
-
     const initializeUser = async () => {
       try {
         // Check if user exists
@@ -209,11 +110,100 @@ export default function Home() {
       }
     }
 
-    initializeUser()
+    if (userId) {
+      initializeUser()
+    }
+  }, [userId]) // Only run when userId changes
+
+  // Handle polling and activity tracking
+  useEffect(() => {
+    // Set up activity tracking
+    const handleActivity = () => {
+      clearTimeout(inactivityTimeoutRef.current)
+      if (!isActive) {
+        setIsActive(true)
+        updateOnlineStatus(true)
+      }
+      inactivityTimeoutRef.current = setTimeout(() => {
+        setIsActive(false)
+        updateOnlineStatus(false)
+      }, INACTIVITY_TIMEOUT)
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setIsActive(false)
+        updateOnlineStatus(false)
+      } else {
+        setIsActive(true)
+        updateOnlineStatus(true)
+      }
+    }
+
+    const handleBeforeUnload = () => {
+      updateOnlineStatus(false)
+    }
+
+    // Set up event listeners
+    window.addEventListener('mousemove', handleActivity)
+    window.addEventListener('keydown', handleActivity)
+    window.addEventListener('click', handleActivity)
+    window.addEventListener('scroll', handleActivity)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener('pagehide', handleBeforeUnload)
+
+    // Start polling
+    const pollInterval = setInterval(async () => {
+      try {
+        // Send heartbeat first
+        await fetch('/api/users/heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        })
+
+        const dataRes = await fetch('/api/getData')
+        if (dataRes.ok) {
+          const newData = await dataRes.json()
+          setData(prevData => {
+            if (!prevData) return newData
+            
+            // Only update if there are actual changes
+            const hasNewMessages = newData.messages.some((newMsg: Message) => 
+              !prevData.messages.find(oldMsg => oldMsg.id === newMsg.id)
+            )
+            const hasUpdatedMessages = newData.messages.some((newMsg: Message) => {
+              const oldMsg = prevData.messages.find(m => m.id === newMsg.id)
+              return oldMsg && (
+                oldMsg.content !== newMsg.content ||
+                oldMsg.isDeleted !== newMsg.isDeleted ||
+                oldMsg.editedAt !== newMsg.editedAt
+              )
+            })
+            const hasNewReactions = newData.reactions.some((newReact: Reaction) => 
+              !prevData.reactions.find(oldReact => oldReact.id === newReact.id)
+            )
+            const hasUserStatusChanges = newData.users.some((newUser: User) => {
+              const oldUser = prevData.users.find(u => u.id === newUser.id)
+              return oldUser && (
+                oldUser.isOnline !== newUser.isOnline ||
+                oldUser.status !== newUser.status
+              )
+            })
+            
+            return (hasNewMessages || hasUpdatedMessages || hasNewReactions || hasUserStatusChanges) 
+              ? newData 
+              : prevData
+          })
+        }
+      } catch (error) {
+        console.error('Error polling for new data:', error)
+      }
+    }, 3000)
 
     return () => {
       // Clean up all event listeners
-      clearTimeout(inactivityTimeout)
+      clearTimeout(inactivityTimeoutRef.current)
       window.removeEventListener('mousemove', handleActivity)
       window.removeEventListener('keydown', handleActivity)
       window.removeEventListener('click', handleActivity)
@@ -226,7 +216,7 @@ export default function Home() {
       // Set user as offline when component unmounts
       updateOnlineStatus(false)
     }
-  }, [userId])
+  }, [userId, isActive, INACTIVITY_TIMEOUT]) // Include INACTIVITY_TIMEOUT in deps
 
   if (!data || !userId) return null
 

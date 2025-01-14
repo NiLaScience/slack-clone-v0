@@ -1,20 +1,17 @@
-import { NextResponse, NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getAuth } from '@clerk/nextjs/server'
 
 const PROTECTED_CHANNELS = ['general', 'random']
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { channelId: string } }
-) {
+export async function DELETE(request: NextRequest) {
   try {
-    const { userId } = getAuth(req)
+    const { userId } = getAuth(request)
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 })
     }
 
-    const { channelId } = params
+    const channelId = request.nextUrl.pathname.split('/')[3] // Get channelId from URL
 
     // Check if this is a protected channel
     const channel = await prisma.channel.findUnique({
@@ -86,24 +83,26 @@ export async function DELETE(
   }
 }
 
-export async function GET(
-  request: Request,
-  { params }: { params: { channelId: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const { channelId } = params;
+    const { userId } = getAuth(request);
+    if (!userId) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const channelId = request.nextUrl.pathname.split('/')[3]; // Get channelId from URL
 
     const channel = await prisma.channel.findUnique({
       where: { id: channelId },
-      select: {
-        id: true,
-        name: true,
-        isPrivate: true,
-        isDM: true,
-        isSelfNote: true,
-        prompt: true,
-        createdAt: true,
-        updatedAt: true,
+      include: {
+        memberships: true,
+        messages: {
+          include: {
+            sender: true,
+            attachments: true,
+            reactions: true
+          }
+        }
       }
     });
 

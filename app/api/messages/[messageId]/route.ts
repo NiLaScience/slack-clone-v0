@@ -1,205 +1,143 @@
-import { NextResponse, NextRequest } from 'next/server'
-import { prisma } from '@/lib/db'
-import { getAuth } from '@clerk/nextjs/server'
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { auth } from '@clerk/nextjs/server';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { messageId: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const { messageId } = params
+    const { userId } = await auth();
+    if (!userId) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const messageId = request.nextUrl.pathname.split('/')[3]; // Get messageId from URL
 
     const message = await prisma.message.findUnique({
       where: { id: messageId },
       include: {
-        attachments: true,
         sender: true,
-        channel: true,
-      },
-    })
+        attachments: true,
+        reactions: true
+      }
+    });
 
     if (!message) {
       return new NextResponse(
         JSON.stringify({ error: 'Message not found' }),
         { status: 404, headers: { 'Content-Type': 'application/json' } }
-      )
+      );
     }
 
-    return NextResponse.json(message)
+    return NextResponse.json(message);
   } catch (error) {
-    console.error('Failed to fetch message:', error)
+    console.error('Failed to fetch message:', error);
     return new NextResponse(
       JSON.stringify({
         error: 'Failed to fetch message',
         details: error instanceof Error ? error.message : 'Unknown error'
       }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
-    )
+    );
   }
 }
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { messageId: string } }
-) {
+export async function PATCH(request: NextRequest) {
   try {
-    const { userId } = getAuth(req);
+    const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const body = await req.json();
-    const { content } = body;
-    
-    if (!content) {
-      return NextResponse.json({ success: false, error: "Content is required" }, { status: 400 });
-    }
+    const messageId = request.nextUrl.pathname.split('/')[3]; // Get messageId from URL
+    const { content } = await request.json();
 
-    // Get the existing message
-    const existingMessage = await prisma.message.findUnique({
-      where: { id: params.messageId },
-      include: {
-        channel: {
-          include: {
-            memberships: true
-          }
-        }
-      }
+    const message = await prisma.message.findUnique({
+      where: { id: messageId }
     });
 
-    if (!existingMessage) {
-      return NextResponse.json({ success: false, error: "Message not found" }, { status: 404 });
+    if (!message) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Message not found' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Check if user is a member of the channel
-    const isMember = existingMessage.channel.memberships.some(m => m.userId === userId);
-    if (!isMember) {
-      return NextResponse.json({ success: false, error: "You are not a member of this channel" }, { status: 403 });
+    if (message.senderId !== userId) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Not authorized to edit this message' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Check if user is the sender
-    if (existingMessage.senderId !== userId) {
-      return NextResponse.json({ success: false, error: "You can only edit your own messages" }, { status: 403 });
-    }
-
-    // Update the message
     const updatedMessage = await prisma.message.update({
-      where: { id: params.messageId },
+      where: { id: messageId },
       data: {
         content,
         editedAt: new Date()
       }
     });
 
-    return NextResponse.json({ 
-      success: true, 
-      message: updatedMessage 
-    });
-    
+    return NextResponse.json({ success: true, message: updatedMessage });
   } catch (error) {
-    console.error(`[MESSAGE_EDIT] Error editing message ${params.messageId}:`, error);
-    
-    return NextResponse.json({ 
-      success: false,
-      error: "Internal Error", 
-      details: error instanceof Error ? error.message : String(error)
-    }, { status: 500 });
+    console.error('Failed to update message:', error);
+    return new NextResponse(
+      JSON.stringify({
+        error: 'Failed to update message',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 }
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { messageId: string } }
-) {
+export async function DELETE(request: NextRequest) {
   try {
-    console.log("[MESSAGE_DELETE] Starting delete request for:", params.messageId);
-    
-    const { userId } = getAuth(req);
-    console.log("[MESSAGE_DELETE] User ID:", userId);
-    
+    const { userId } = await auth();
     if (!userId) {
-      console.log("[MESSAGE_DELETE] Unauthorized - no user ID");
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const messageId = params.messageId;
-    console.log("[MESSAGE_DELETE] Attempting to delete message:", messageId);
+    const messageId = request.nextUrl.pathname.split('/')[3]; // Get messageId from URL
 
-    // Get the existing message
-    const existingMessage = await prisma.message.findUnique({
-      where: { id: messageId },
-      include: {
-        channel: {
-          include: {
-            memberships: true
-          }
-        }
-      }
+    const message = await prisma.message.findUnique({
+      where: { id: messageId }
     });
 
-    console.log("[MESSAGE_DELETE] Found message:", existingMessage);
-
-    if (!existingMessage) {
-      console.log("[MESSAGE_DELETE] Message not found");
-      return NextResponse.json(
-        { error: "Message not found" },
-        { status: 404 }
+    if (!message) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Message not found' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    // Check if user is a member of the channel
-    const isMember = existingMessage.channel.memberships.some(m => m.userId === userId);
-    if (!isMember) {
-      console.log("[MESSAGE_DELETE] Forbidden - user is not a channel member");
-      return NextResponse.json(
-        { error: "You are not a member of this channel" },
-        { status: 403 }
+    if (message.senderId !== userId) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Not authorized to delete this message' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    // Check if user is the sender
-    if (existingMessage.senderId !== userId) {
-      console.log("[MESSAGE_DELETE] Forbidden - message sender:", existingMessage.senderId, "requester:", userId);
-      return NextResponse.json(
-        { error: "You can only delete your own messages" },
-        { status: 403 }
-      );
-    }
+    // Delete all reactions and attachments first
+    await prisma.$transaction([
+      prisma.reaction.deleteMany({
+        where: { messageId }
+      }),
+      prisma.attachment.deleteMany({
+        where: { messageId }
+      }),
+      prisma.message.delete({
+        where: { id: messageId }
+      })
+    ]);
 
-    // Soft delete the message
-    const deletedMessage = await prisma.message.update({
-      where: { id: messageId },
-      data: { 
-        isDeleted: true,
-        content: ''  // Clear the content for privacy
-      }
-    });
-
-    console.log("[MESSAGE_DELETE] Successfully soft-deleted message:", deletedMessage);
-    
-    const response = NextResponse.json({ 
-      success: true, 
-      message: deletedMessage 
-    });
-    
-    console.log("[MESSAGE_DELETE] Sending response:", response);
-    return response;
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("[MESSAGE_DELETE] Error details:", {
-      error,
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    });
-    
-    const errorResponse = NextResponse.json({ 
-      error: "Internal Error", 
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
-    
-    console.log("[MESSAGE_DELETE] Sending error response:", errorResponse);
-    return errorResponse;
+    console.error('Failed to delete message:', error);
+    return new NextResponse(
+      JSON.stringify({
+        error: 'Failed to delete message',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 } 

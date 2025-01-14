@@ -57,7 +57,8 @@ async function main() {
   await handleBotResponse({
     id: message.id,
     content: message.content,
-    channelId: message.channelId
+    channelId: message.channelId,
+    senderId: message.senderId
   });
 
   console.log('Bot response triggered');

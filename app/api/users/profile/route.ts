@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
       return new NextResponse("Unauthorized", { status: 401 })
     }
 
-    const { name, avatar, status, isOnline } = await req.json()
+    const { name, avatar, status, isOnline, email } = await req.json()
     
     // Create or update user profile
     const user = await prisma.user.upsert({
@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
       create: {
         id: userId,
         name,
+        email,
         avatar,
         status,
         isOnline,

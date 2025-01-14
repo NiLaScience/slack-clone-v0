@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
 import { embedMessage } from '@/lib/rag'
-import { processPdfAttachment } from '@/lib/pdf'
 import { handleBotResponse } from '@/lib/bot'
 
 type AttachmentInput = {
@@ -95,28 +94,31 @@ export async function POST(req: Request) {
         console.error('[MESSAGE] Error in embedding process:', error);
       }
 
-      // Process PDF attachments directly instead of using a separate endpoint
+      // Process PDF attachments
       if (message.attachments?.length > 0) {
         const pdfAttachments = message.attachments.filter(att => att.contentType === 'application/pdf');
         if (pdfAttachments.length > 0) {
           console.warn('[PDF] Found PDF attachments:', pdfAttachments.length);
           
-          // Process PDFs in the background
+          // Process PDFs in the background by calling the PDF processing endpoint
           Promise.all(pdfAttachments.map(attachment => {
-            console.warn('[PDF] Starting processing for:', attachment.filename);
-            return processPdfAttachment(
-              message.id,
-              message.channelId,
-              message.senderId,
-              attachment.id,
-              attachment.fileUrl,
-              attachment.filename,
-              message.channel.isDM
-            ).catch(error => {
-              console.error('[PDF] Error processing attachment:', attachment.filename, error);
+            return fetch('/api/rag/process-pdf', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                messageId: message.id,
+                channelId: message.channelId,
+                senderId: message.senderId,
+                attachmentId: attachment.id,
+                fileUrl: attachment.fileUrl,
+                filename: attachment.filename,
+                isDM: message.channel.isDM
+              })
+            }).catch(err => {
+              console.error('[PDF] Error processing attachment:', attachment.filename, err);
             });
-          })).catch(error => {
-            console.error('[PDF] Error in PDF processing:', error);
+          })).catch(err => {
+            console.error('[PDF] Error in PDF processing:', err);
           });
           
           console.warn('[PDF] PDF processing initiated');

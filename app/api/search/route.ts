@@ -8,7 +8,7 @@ type SearchMessage = {
   sender: {
     id: string
     name: string
-    avatar: string
+    avatar: string | null
     status: string | null
     isOnline: boolean
   }

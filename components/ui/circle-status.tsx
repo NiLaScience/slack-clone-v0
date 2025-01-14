@@ -1,23 +1,14 @@
 import React from "react"
 
 interface CircleStatusProps {
-  isOnline?: boolean
-  status?: string
+  isOnline?: boolean;
+  status?: string | null;
 }
 
 export function CircleStatus({ isOnline, status }: CircleStatusProps) {
-  const getStatusColor = () => {
-    if (!isOnline) return "bg-gray-500"
-    if (status === "Busy") return "bg-yellow-500"
-    if (status === "Away") return "bg-red-500"
-    return "bg-green-500"
-  }
+  if (!isOnline && !status) return null;
 
   return (
-    <div
-      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full ring-2 ring-white
-        ${getStatusColor()}
-      `}
-    />
-  )
+    <div className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-green-500 border-2 border-white" />
+  );
 } 
