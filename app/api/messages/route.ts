@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json()
-    const { content, channelId, parentMessageId, attachments } = body
+    const { content, channelId, parentMessageId, attachments, askBot } = body
 
     // Check if user is a member of the channel
     const membership = await prisma.channelMembership.findFirst({
@@ -46,6 +46,7 @@ export async function POST(req: Request) {
         senderId: userId,
         channelId,
         parentMessageId,
+        askBot: askBot || false,
         attachments: attachments ? {
           create: attachments.map((attachment: AttachmentInput) => ({
             id: `att_${Date.now()}_${Math.random().toString(36).slice(2)}`,

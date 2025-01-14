@@ -62,6 +62,7 @@ model Message {
   content         String
   parentMessageId String? // For threaded replies
   isDeleted       Boolean  @default(false)
+  askBot          Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   editedAt        DateTime?

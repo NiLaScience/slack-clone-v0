@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { X, Paperclip, Smile, Bold, Italic, Code, Link as LinkIcon, List, ListOrdered } from 'lucide-react'
+import { X, Paperclip, Smile, Bold, Italic, Code, Link as LinkIcon, List, ListOrdered, Bot } from 'lucide-react'
 import data from '@emoji-mart/data'
 import Picker from '@emoji-mart/react'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -13,7 +13,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import { Editor } from '@tiptap/core'
 
 interface MessageInputProps {
-  onSendMessage: (content: string, attachments: File[]) => void;
+  onSendMessage: (content: string, attachments: File[], askBot: boolean) => void;
   replyingTo: string | null;
   onCancelReply: () => void;
   placeholder?: string;
@@ -22,6 +22,7 @@ interface MessageInputProps {
 
 export function MessageInput({ onSendMessage, replyingTo, onCancelReply, placeholder = "Type a message...", initialContent = "" }: MessageInputProps) {
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [askBot, setAskBot] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [content, setContent] = useState(initialContent);
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
@@ -33,12 +34,13 @@ export function MessageInput({ onSendMessage, replyingTo, onCancelReply, placeho
     
     const htmlContent = editor.getHTML();
     if (htmlContent.trim() || attachments.length > 0) {
-      onSendMessage(htmlContent, attachments);
+      onSendMessage(htmlContent, attachments, askBot);
       editor.commands.clearContent();
       setContent('');
       setAttachments([]);
+      setAskBot(false);
     }
-  }, [attachments, onSendMessage]);
+  }, [attachments, onSendMessage, askBot]);
 
   const editor = useEditor({
     extensions: [
@@ -204,6 +206,15 @@ export function MessageInput({ onSendMessage, replyingTo, onCancelReply, placeho
           </Popover>
           <Button type="button" variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()}>
             <Paperclip className="h-4 w-4" />
+          </Button>
+          <Button 
+            type="button" 
+            variant={askBot ? "secondary" : "ghost"} 
+            size="sm" 
+            onClick={() => setAskBot(!askBot)}
+            className={askBot ? 'bg-accent' : ''}
+          >
+            <Bot className="h-4 w-4" />
           </Button>
           <Button type="submit" size="sm">Send</Button>
         </div>
