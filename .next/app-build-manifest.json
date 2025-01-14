@@ -5,6 +5,11 @@
       "static/chunks/main-app.js",
       "static/chunks/app/api/users/heartbeat/route.js"
     ],
+    "/api/getData/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/getData/route.js"
+    ],
     "/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -21,11 +26,6 @@
       "static/chunks/main-app.js",
       "static/chunks/app/api/users/online/route.js"
     ],
-    "/api/getData/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/getData/route.js"
-    ],
     "/sign-in/[[...sign-in]]/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -40,11 +40,6 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/channels/join/route.js"
-    ],
-    "/api/messages/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/messages/route.js"
     ]
   }
 }
