@@ -2,8 +2,14 @@ import { ClerkProvider } from '@clerk/nextjs'
 import './globals.css'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import { initBotUser } from '@/lib/bot'
 
 const inter = Inter({ subsets: ['latin'] })
+
+// Initialize bot user when server starts
+if (process.env.NODE_ENV !== 'production') {
+  initBotUser().catch(console.error)
+}
 
 export const metadata: Metadata = {
   title: 'Slack Clone',

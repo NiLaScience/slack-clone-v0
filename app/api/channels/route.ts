@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { getAuth } from '@clerk/nextjs/server'
 import { validateChannelCreation } from '../middleware/channelValidation'
 import { Prisma } from '@prisma/client'
+import { getBotId } from '@/lib/bot'
 
 const DEFAULT_CHANNELS = ['general', 'random']
 const MAX_RETRIES = 3
@@ -10,22 +11,36 @@ const RETRY_DELAY = 1000 // 1 second
 
 // Create default channels if they don't exist
 async function ensureDefaultChannels() {
+  const botId = getBotId();
+  
   for (const channelName of DEFAULT_CHANNELS) {
     const existingChannel = await prisma.channel.findFirst({
       where: { name: channelName }
     })
 
     if (!existingChannel) {
-      await prisma.channel.create({
+      // Create channel
+      const channel = await prisma.channel.create({
         data: {
           id: `channel_${Date.now()}_${Math.random().toString(36).slice(2)}`,
           name: channelName,
           isPrivate: false,
           isDM: false,
+          isSelfNote: false,
           createdAt: new Date(),
           updatedAt: new Date()
         }
-      })
+      });
+
+      // Add bot to default channel (these are always regular channels)
+      await prisma.channelMembership.create({
+        data: {
+          id: `bot_membership_${channel.id}`,
+          channelId: channel.id,
+          userId: botId,
+          createdAt: new Date()
+        }
+      });
     }
   }
 }
@@ -152,6 +167,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(validationError, { status: validationError.status })
     }
 
+    // Only add bot to non-DM, non-self-note channels
+    const memberships = [
+      {
+        id: `membership_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        userId,
+        createdAt: new Date()
+      }
+    ];
+
+    // Add bot only to regular channels
+    if (!isDM && !isPrivate) {
+      memberships.push({
+        id: `bot_membership_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        userId: getBotId(),
+        createdAt: new Date()
+      });
+    }
+
     const channel = await prisma.channel.create({
       data: {
         id: `channel_${Date.now()}_${Math.random().toString(36).slice(2)}`,
@@ -162,11 +195,7 @@ export async function POST(req: NextRequest) {
         createdAt: new Date(),
         updatedAt: new Date(),
         memberships: {
-          create: {
-            id: `membership_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-            userId,
-            createdAt: new Date()
-          }
+          create: memberships
         }
       }
     })

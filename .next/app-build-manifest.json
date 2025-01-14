@@ -1,20 +1,14 @@
 {
   "pages": {
-    "/layout": [
+    "/api/users/heartbeat/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/css/app/layout.css",
-      "static/chunks/app/layout.js"
+      "static/chunks/app/api/users/heartbeat/route.js"
     ],
-    "/sign-in/[[...sign-in]]/page": [
+    "/api/getData/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/sign-in/[[...sign-in]]/page.js"
-    ],
-    "/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/page.js"
+      "static/chunks/app/api/getData/route.js"
     ],
     "/api/users/online/route": [
       "static/chunks/webpack.js",
@@ -26,30 +20,31 @@
       "static/chunks/main-app.js",
       "static/chunks/app/api/users/profile/create/route.js"
     ],
-    "/api/getData/route": [
+    "/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/getData/route.js"
+      "static/css/app/layout.css",
+      "static/chunks/app/layout.js"
     ],
-    "/api/users/heartbeat/route": [
+    "/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/users/heartbeat/route.js"
+      "static/chunks/app/page.js"
+    ],
+    "/sign-in/[[...sign-in]]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/sign-in/[[...sign-in]]/page.js"
     ],
     "/api/channels/join/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/channels/join/route.js"
     ],
-    "/api/upload/route": [
+    "/api/search/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/upload/route.js"
-    ],
-    "/api/messages/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/messages/route.js"
+      "static/chunks/app/api/search/route.js"
     ],
     "/api/users/status/route": [
       "static/chunks/webpack.js",

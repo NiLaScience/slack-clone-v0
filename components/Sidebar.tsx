@@ -4,7 +4,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Hash, Menu, LogOut, Plus, Trash2 } from 'lucide-react'
 import { Channel, User as UserType } from "@/types/dataStructures"
 import { CreateChannelDialog } from "./CreateChannelDialog"
-import { UserProfileStatus } from "./UserProfileStatus"
+import { UserStatusMenu } from "./UserStatusMenu"
 import { CircleStatus } from "@/components/ui/circle-status"
 import { SignOutButton } from "@clerk/nextjs"
 import { getChannelDisplayName } from "@/lib/utils"
@@ -209,11 +209,11 @@ export function Sidebar({
       {/* Bottom Section - Always visible */}
       <div className="flex-shrink-0 p-4 border-t border-gray-700 mt-auto">
         <div className="space-y-4 text-white">
-          <UserProfileStatus
+          <UserStatusMenu
             user={currentUser}
-            onSetUserStatus={onSetUserStatus}
-            onSetUserAvatar={onSetUserAvatar}
-            onSetUserName={onSetUserName}
+            onSetStatus={onSetUserStatus}
+            onSetAvatar={onSetUserAvatar}
+            onSetName={onSetUserName}
           />
           <SignOutButton>
             <Button variant="ghost" className="w-full justify-start hover:bg-gray-700 text-gray-300 hover:text-white">
