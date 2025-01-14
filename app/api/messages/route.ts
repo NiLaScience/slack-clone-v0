@@ -62,9 +62,9 @@ export async function POST(req: Request) {
       }
     })
 
-    // Process message and attachments asynchronously
+    // Only try to embed if it's not a self-note
     if (!message.channel.isSelfNote) {
-      // Embed the message text
+      // Embed message text
       try {
         await embedMessage(content, undefined, {
           messageId: message.id,
@@ -73,32 +73,38 @@ export async function POST(req: Request) {
           createdAt: message.createdAt.toISOString(),
           isDM: message.channel.isDM,
           type: 'message'
-        })
-      } catch (embedError) {
-        console.error('Error embedding message:', embedError)
+        }).catch(error => {
+          console.error('[MESSAGE] Error embedding message:', error);
+        });
+      } catch (error) {
+        console.error('[MESSAGE] Error in embedding process:', error);
       }
 
-      // Process PDF attachments
+      // Process PDF attachments directly instead of using a separate endpoint
       if (message.attachments?.length > 0) {
-        for (const attachment of message.attachments) {
-          if (attachment.contentType === 'application/pdf') {
-            try {
-              // Process PDF in the background
-              processPdfAttachment(
-                message.id,
-                message.channelId,
-                message.senderId,
-                attachment.id,
-                attachment.fileUrl,
-                attachment.filename,
-                message.channel.isDM
-              ).catch(error => {
-                console.error('Error processing PDF attachment:', error)
-              })
-            } catch (pdfError) {
-              console.error('Error initiating PDF processing:', pdfError)
-            }
-          }
+        const pdfAttachments = message.attachments.filter(att => att.contentType === 'application/pdf');
+        if (pdfAttachments.length > 0) {
+          console.warn('[PDF] Found PDF attachments:', pdfAttachments.length);
+          
+          // Process PDFs in the background
+          Promise.all(pdfAttachments.map(attachment => {
+            console.warn('[PDF] Starting processing for:', attachment.filename);
+            return processPdfAttachment(
+              message.id,
+              message.channelId,
+              message.senderId,
+              attachment.id,
+              attachment.fileUrl,
+              attachment.filename,
+              message.channel.isDM
+            ).catch(error => {
+              console.error('[PDF] Error processing attachment:', attachment.filename, error);
+            });
+          })).catch(error => {
+            console.error('[PDF] Error in PDF processing:', error);
+          });
+          
+          console.warn('[PDF] PDF processing initiated');
         }
       }
     }
