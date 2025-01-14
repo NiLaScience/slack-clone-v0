@@ -22,7 +22,11 @@ export async function handleBotResponse(message: BotResponseParams) {
     const channel = await prisma.channel.findUnique({
       where: { id: message.channelId },
       include: {
-        memberships: true
+        memberships: {
+          include: {
+            user: true
+          }
+        }
       }
     });
 
@@ -31,8 +35,21 @@ export async function handleBotResponse(message: BotResponseParams) {
       return;
     }
 
-    const channelPrompt = channel.prompt || "You are a helpful assistant in a Slack-like chat. Keep responses concise and conversational.";
-    console.log('[BOT] Using channel prompt:', channelPrompt);
+    // Get the appropriate prompt based on channel type
+    let systemPrompt = "You are a helpful assistant in a Slack-like chat. Keep responses concise and conversational.";
+    
+    if (channel.isDM) {
+      // In DMs, use the other user's prompt
+      const otherUser = channel.memberships.find(m => m.userId !== message.senderId)?.user;
+      if (otherUser?.prompt) {
+        systemPrompt = otherUser.prompt;
+        console.log('[BOT] Using user prompt:', systemPrompt);
+      }
+    } else if (channel.prompt) {
+      // In channels, use the channel prompt
+      systemPrompt = channel.prompt;
+      console.log('[BOT] Using channel prompt:', systemPrompt);
+    }
 
     console.log('[BOT] Querying Pinecone for context with:', {
       content: message.content,
@@ -52,7 +69,7 @@ export async function handleBotResponse(message: BotResponseParams) {
       messages: [
         { 
           role: "system", 
-          content: `${channelPrompt}\n\nBelow is relevant context from previous messages in this channel:\n\n${context}`
+          content: `${systemPrompt}\n\nBelow is relevant context from previous messages in this channel:\n\n${context}`
         },
         { 
           role: "user", 

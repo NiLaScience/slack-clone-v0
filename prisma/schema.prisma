@@ -21,6 +21,7 @@ model User {
   status      String?
   isOnline    Boolean             @default(false)
   isBot       Boolean             @default(false)
+  prompt      String?             @db.Text
   lastActiveAt DateTime @default(now())
   createdAt   DateTime
   updatedAt   DateTime
