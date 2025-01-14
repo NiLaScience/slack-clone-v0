@@ -10,6 +10,14 @@ const openai = new OpenAI({
 export async function handleBotResponse(message: { id: string, content: string, channelId: string }) {
   try {
     console.log('[BOT] Starting response generation for message:', message.id);
+
+    // Get channel prompt
+    const channel = await prisma.channel.findUnique({
+      where: { id: message.channelId }
+    });
+    const channelPrompt = channel?.prompt || "You are a helpful assistant in a Slack-like chat. Keep responses concise and conversational.";
+    console.log('[BOT] Using channel prompt:', channelPrompt);
+
     console.log('[BOT] Querying Pinecone for context with:', {
       content: message.content,
       channelId: message.channelId
@@ -28,7 +36,7 @@ export async function handleBotResponse(message: { id: string, content: string, 
       messages: [
         { 
           role: "system", 
-          content: "You are a helpful assistant in a Slack-like chat. Keep responses concise and conversational. Below is relevant context from previous messages in this channel:\n\n" + context
+          content: `${channelPrompt}\n\nBelow is relevant context from previous messages in this channel:\n\n${context}`
         },
         { 
           role: "user", 

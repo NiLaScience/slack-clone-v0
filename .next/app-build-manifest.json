@@ -31,20 +31,30 @@
       "static/chunks/main-app.js",
       "static/chunks/app/api/getData/route.js"
     ],
-    "/api/users/heartbeat/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/users/heartbeat/route.js"
-    ],
     "/api/channels/join/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/channels/join/route.js"
     ],
+    "/api/users/heartbeat/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/users/heartbeat/route.js"
+    ],
     "/api/messages/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/messages/route.js"
+    ],
+    "/api/channels/[channelId]/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/channels/[channelId]/route.js"
+    ],
+    "/api/channels/[channelId]/prompt/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/channels/[channelId]/prompt/route.js"
     ]
   }
 }

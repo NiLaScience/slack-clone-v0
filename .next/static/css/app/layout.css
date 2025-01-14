@@ -1519,6 +1519,9 @@ video {
 .min-h-0 {
   min-height: 0px;
 }
+.min-h-\[100px\] {
+  min-height: 100px;
+}
 .min-h-\[60px\] {
   min-height: 60px;
 }

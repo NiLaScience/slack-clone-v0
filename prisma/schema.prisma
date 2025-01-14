@@ -36,6 +36,7 @@ model Channel {
   isPrivate   Boolean             @default(false)
   isDM        Boolean             @default(false)
   isSelfNote  Boolean             @default(false)
+  prompt      String?             @db.Text
   createdAt   DateTime
   updatedAt   DateTime
   // A channel can have many messages
