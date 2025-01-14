@@ -337,7 +337,7 @@ export default function Home() {
     setData(newData)
   }
 
-  const handleSendMessage = async (content: string, attachments: File[] = [], askBot: boolean = false) => {
+  const handleSendMessage = async (content: string, attachments: File[] = []) => {
     if (!selectedChannelId) return
 
     try {
@@ -369,8 +369,7 @@ export default function Home() {
         body: JSON.stringify({ 
           content, 
           channelId: selectedChannelId,
-          attachments: uploadedAttachments,
-          askBot
+          attachments: uploadedAttachments
         })
       })
 

@@ -1,16 +1,13 @@
-export type User = {
+export interface User {
   id: string;
   name: string;
   email: string;
-  avatar: string | null;
-  status: string | null;
-  isOnline: boolean;
-  isBot: boolean;
-  prompt: string | null;
-  lastActiveAt: Date;
+  avatar: string;
+  status?: string;
+  isOnline?: boolean;
   createdAt: Date;
   updatedAt: Date;
-};
+}
 
 export interface Channel {
   id: string;

@@ -3,7 +3,7 @@ import { Message, User, Reaction } from "@/types/dataStructures"
 import { ReactionPicker } from "./ReactionPicker"
 import { FileAttachment } from "./FileAttachment"
 import { CircleStatus } from "@/components/ui/circle-status"
-import { MoreHorizontal, Pencil, Trash2, Hash, Users, Settings } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2, Hash, Users } from "lucide-react"
 import { getChannelDisplayName } from "@/lib/utils"
 import {
   DropdownMenu,
@@ -20,15 +20,6 @@ import {
 import { useState } from "react"
 import { MessageInput } from "./MessageInput"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
 
 interface MessageListProps {
   messages: Message[];
@@ -66,30 +57,6 @@ export function MessageList({
   memberships
 }: MessageListProps) {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
-  const [isPromptOpen, setIsPromptOpen] = useState(false);
-  const [channelPrompt, setChannelPrompt] = useState<string>('');
-
-  // Fetch channel prompt when dialog opens
-  const handleDialogOpen = async (open: boolean) => {
-    if (open && channelId) {
-      try {
-        const response = await fetch(`/api/channels/${channelId}`);
-        if (!response.ok) {
-          console.error('Failed to fetch channel:', await response.text());
-          // Still open the dialog, just with empty prompt
-          setChannelPrompt('');
-        } else {
-          const channel = await response.json();
-          setChannelPrompt(channel.prompt || '');
-        }
-      } catch (error) {
-        console.error('Error fetching channel prompt:', error);
-        // Still open the dialog, just with empty prompt
-        setChannelPrompt('');
-      }
-    }
-    setIsPromptOpen(open);
-  };
 
   const getReactionCounts = (messageId: string) => {
     return reactions
@@ -151,24 +118,6 @@ export function MessageList({
     }
   };
 
-  const handlePromptSave = async () => {
-    try {
-      const response = await fetch(`/api/channels/${channelId}/prompt`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: channelPrompt })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update prompt');
-      }
-
-      setIsPromptOpen(false);
-    } catch (error) {
-      console.error('Error updating channel prompt:', error);
-    }
-  };
-
   return (
     <div className="flex-1 flex flex-col">
       {/* Channel Header */}
@@ -200,57 +149,24 @@ export function MessageList({
               }, currentUserId, users) : channelName}
             </h2>
           </div>
-
-          <div className="flex items-center space-x-2">
-            {/* Channel Settings Button - Only show in non-DM channels */}
-            {!isDM && (
-              <Dialog open={isPromptOpen} onOpenChange={handleDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Channel Settings</DialogTitle>
-                    <DialogDescription>
-                      Configure how the bot behaves in this channel
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Bot Prompt</label>
-                      <Textarea
-                        placeholder="Enter the system prompt for the bot in this channel..."
-                        value={channelPrompt}
-                        onChange={(e) => setChannelPrompt(e.target.value)}
-                        className="min-h-[100px]"
-                      />
-                    </div>
-                    <Button onClick={handlePromptSave}>Save Changes</Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            )}
-
-            {/* Member List */}
-            <div className="flex items-center -space-x-2">
-              {messages
-                .map(m => m.senderId)
-                .filter((id, i, arr) => arr.indexOf(id) === i) // Get unique senderIds
-                .map(userId => users.find(u => u.id === userId))
-                .filter((user): user is NonNullable<typeof user> => user !== undefined)
-                .map((user) => (
-                  <div 
-                    key={user.id} 
-                    className="relative w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full ring-2 ring-white"
-                    title={user.name}
-                  >
-                    <span className="text-xl">{user.avatar || '👤'}</span>
-                    <CircleStatus isOnline={user.isOnline} status={user.status} />
-                  </div>
-                ))}
-            </div>
+          
+          {/* Member List */}
+          <div className="flex items-center -space-x-2">
+            {messages
+              .map(m => m.senderId)
+              .filter((id, i, arr) => arr.indexOf(id) === i) // Get unique senderIds
+              .map(userId => users.find(u => u.id === userId))
+              .filter((user): user is NonNullable<typeof user> => user !== undefined)
+              .map((user) => (
+                <div 
+                  key={user.id} 
+                  className="relative w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full ring-2 ring-white"
+                  title={user.name}
+                >
+                  <span className="text-xl">{user.avatar || '👤'}</span>
+                  <CircleStatus isOnline={user.isOnline} status={user.status} />
+                </div>
+              ))}
           </div>
         </div>
       )}

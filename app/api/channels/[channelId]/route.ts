@@ -84,45 +84,4 @@ export async function DELETE(
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }
-}
-
-export async function GET(
-  request: Request,
-  { params }: { params: { channelId: string } }
-) {
-  try {
-    const { channelId } = params;
-
-    const channel = await prisma.channel.findUnique({
-      where: { id: channelId },
-      select: {
-        id: true,
-        name: true,
-        isPrivate: true,
-        isDM: true,
-        isSelfNote: true,
-        prompt: true,
-        createdAt: true,
-        updatedAt: true,
-      }
-    });
-
-    if (!channel) {
-      return new NextResponse(
-        JSON.stringify({ error: 'Channel not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    return NextResponse.json(channel);
-  } catch (error) {
-    console.error('Failed to fetch channel:', error);
-    return new NextResponse(
-      JSON.stringify({
-        error: 'Failed to fetch channel',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
 } 
