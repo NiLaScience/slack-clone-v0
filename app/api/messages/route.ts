@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Notify clients about the new message
-    await emitDataUpdate(userId, {
+    await emitDataUpdate({
       type: 'message-created',
       channelId: message.channelId,
       data: {

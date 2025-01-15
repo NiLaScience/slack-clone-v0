@@ -53,12 +53,12 @@ export async function POST(req: NextRequest) {
       })
       
       // Notify clients about the update
-      await emitDataUpdate(userId, {
+      await emitDataUpdate({
         type: 'reaction-toggled',
         channelId: message.channelId,
         data: {
           messageId,
-          action: 'removed' as const,
+          action: 'removed',
           reactionId: existingReaction.id
         }
       });
@@ -77,12 +77,12 @@ export async function POST(req: NextRequest) {
       })
       
       // Notify clients about the update
-      await emitDataUpdate(userId, {
+      await emitDataUpdate({
         type: 'reaction-toggled',
         channelId: message.channelId,
         data: {
           messageId,
-          action: 'added' as const,
+          action: 'added',
           reaction
         }
       });
@@ -130,12 +130,12 @@ export async function DELETE(req: NextRequest) {
     })
 
     // Notify clients about the update
-    await emitDataUpdate(userId, {
+    await emitDataUpdate({
       type: 'reaction-toggled',
       channelId: reaction.message.channelId,
       data: {
         messageId: reaction.messageId,
-        action: 'removed' as const,
+        action: 'removed',
         reactionId: id
       }
     });

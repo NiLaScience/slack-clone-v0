@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     // Ensure default channels exist
     await ensureDefaultChannels()
 
-    const userId = req.headers.get('x-clerk-user-id')
+    const { userId } = getAuth(req)
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 })
     }
@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
           content: true,
           senderId: true,
           channelId: true,
+          parentMessageId: true,
           createdAt: true,
           editedAt: true,
           attachments: {

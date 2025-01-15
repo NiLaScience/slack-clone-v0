@@ -72,7 +72,7 @@ export async function DELETE(request: NextRequest) {
     ])
 
     // Notify clients about the channel deletion
-    await emitDataUpdate(userId, {
+    await emitDataUpdate({
       type: 'channel-deleted',
       data: {
         id: channelId,

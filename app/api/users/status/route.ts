@@ -21,10 +21,12 @@ export async function PATCH(req: NextRequest) {
     })
     
     // Notify clients about the status change
-    await emitDataUpdate(userId, {
+    await emitDataUpdate({
       type: 'user-updated',
       data: {
         userId,
+        name: updatedUser.name || undefined,
+        avatar: updatedUser.avatar || undefined,
         status: updatedUser.status || undefined
       }
     });

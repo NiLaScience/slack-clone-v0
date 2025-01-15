@@ -17,11 +17,11 @@ export async function PATCH(req: NextRequest) {
       data: { isOnline }
     })
 
-    await emitDataUpdate(userId, {
+    await emitDataUpdate({
       type: 'user-status-changed',
       data: {
         userId,
-        isOnline
+        isOnline: true
       }
     });
     

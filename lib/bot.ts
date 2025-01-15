@@ -1,6 +1,7 @@
 import { prisma } from './db';
 import OpenAI from 'openai';
 import { queryMessages } from './rag';
+import { emitDataUpdate } from './socket';
 
 const BOT_USER_ID = 'bot_user';
 const openai = new OpenAI({
@@ -99,17 +100,34 @@ export async function handleBotResponse(message: BotResponseParams) {
     }
 
     // Create bot's response message
-    await prisma.message.create({
+    const botMessage = await prisma.message.create({
       data: {
         id: `msg_${Date.now()}_${Math.random().toString(36).slice(2)}`,
         content: botResponse,
         channelId: message.channelId,
         senderId: senderId,
-        parentMessageId: message.id, // Link to the original message
+        parentMessageId: message.id,
         createdAt: new Date(),
         updatedAt: new Date(),
+      },
+      include: {
+        sender: true,
+        attachments: true,
+        reactions: true
       }
     });
+
+    // Notify clients about the bot's response
+    await emitDataUpdate({
+      type: 'message-created',
+      channelId: message.channelId,
+      data: {
+        ...botMessage,
+        parentMessageId: message.id,
+        editedAt: undefined
+      }
+    });
+
     console.log('[BOT] Message created successfully');
 
   } catch (error) {

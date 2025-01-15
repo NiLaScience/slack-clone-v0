@@ -78,13 +78,13 @@ export async function PATCH(request: NextRequest) {
     })
 
     // Notify clients about the update
-    await emitDataUpdate(userId, {
+    await emitDataUpdate({
       type: 'message-updated',
       channelId: message.channelId,
       data: {
-        ...updatedMessage,
-        parentMessageId: updatedMessage.parentMessageId || undefined,
-        editedAt: updatedMessage.editedAt || undefined
+        ...message,
+        parentMessageId: message.parentMessageId || undefined,
+        editedAt: message.editedAt || undefined
       }
     });
 
@@ -142,10 +142,10 @@ export async function DELETE(request: NextRequest) {
     ])
 
     // Notify clients about the deletion
-    await emitDataUpdate(userId, {
+    await emitDataUpdate({
       type: 'message-deleted',
       channelId: message.channelId,
-      data: { id: messageId }
+      data: { id: message.id }
     });
 
     return NextResponse.json({ success: true })

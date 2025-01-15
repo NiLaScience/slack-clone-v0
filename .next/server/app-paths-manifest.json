@@ -1,5 +1,6 @@
 {
-  "/api/users/online/route": "app/api/users/online/route.js",
-  "/_not-found/page": "app/_not-found/page.js",
+  "/api/getData/route": "app/api/getData/route.js",
+  "/api/users/status/route": "app/api/users/status/route.js",
+  "/api/users/name/route": "app/api/users/name/route.js",
   "/page": "app/page.js"
 }

@@ -145,12 +145,9 @@ export async function POST(req: NextRequest) {
 
       try {
         const channel = await createDMChannel(channelName, sortedUserIds)
-        await emitDataUpdate(userId, {
+        await emitDataUpdate({
           type: 'channel-created',
-          data: {
-            ...channel,
-            memberIds: sortedUserIds
-          }
+          data: channel
         });
         return NextResponse.json(channel)
       } catch (error) {
@@ -212,12 +209,9 @@ export async function POST(req: NextRequest) {
     })
 
     // Notify clients about the new channel
-    await emitDataUpdate(userId, {
+    await emitDataUpdate({
       type: 'channel-created',
-      data: {
-        ...channel,
-        memberIds: channel.memberships.map(m => m.userId)
-      }
+      data: channel
     });
 
     return NextResponse.json(channel)

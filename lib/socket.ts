@@ -29,7 +29,7 @@ type UpdateType =
       status?: string;
     } };
 
-export async function emitDataUpdate(userId: string, update: UpdateType) {
+export async function emitDataUpdate(update: UpdateType) {
   try {
     const eventName = update.type;
     

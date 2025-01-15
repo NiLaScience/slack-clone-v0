@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
       // Notify about each user going offline
       await Promise.all(usersToUpdate.map(user => 
-        emitDataUpdate(user.id, {
+        emitDataUpdate({
           type: 'user-status-changed',
           data: {
             userId: user.id,
