@@ -1,13 +1,14 @@
-import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { NextResponse, NextRequest } from 'next/server'
+import { getAuth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
+import { emitDataUpdate } from '@/lib/socket'
 
 // How long (in milliseconds) before a user is considered offline
 const OFFLINE_THRESHOLD = 10000 // 10 seconds
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
-    const { userId } = await auth()
+    const { userId } = getAuth(req)
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -21,18 +22,43 @@ export async function POST() {
       }
     })
 
-    // Find and update users who haven't sent a heartbeat recently
-    await prisma.user.updateMany({
+    // Find users who haven't sent a heartbeat recently
+    const usersToUpdate = await prisma.user.findMany({
       where: {
         lastActiveAt: {
           lt: new Date(Date.now() - OFFLINE_THRESHOLD)
         },
         isOnline: true
       },
-      data: {
-        isOnline: false
+      select: {
+        id: true
       }
     })
+
+    // Update offline users
+    if (usersToUpdate.length > 0) {
+      await prisma.user.updateMany({
+        where: {
+          id: {
+            in: usersToUpdate.map(u => u.id)
+          }
+        },
+        data: {
+          isOnline: false
+        }
+      })
+
+      // Notify about each user going offline
+      await Promise.all(usersToUpdate.map(user => 
+        emitDataUpdate(user.id, {
+          type: 'user-status-changed',
+          data: {
+            userId: user.id,
+            isOnline: false
+          }
+        })
+      ))
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

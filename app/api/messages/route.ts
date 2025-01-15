@@ -3,6 +3,9 @@ import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
 import { embedMessage } from '@/lib/rag'
 import { handleBotResponse } from '@/lib/bot'
+import { emitDataUpdate } from '@/lib/socket'
+import { getAuth } from '@clerk/nextjs/server'
+import { NextRequest } from 'next/server'
 
 type AttachmentInput = {
   filename: string
@@ -10,9 +13,9 @@ type AttachmentInput = {
   contentType: string
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { userId } = await auth()
+    const { userId } = getAuth(req)
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 })
     }
@@ -125,6 +128,17 @@ export async function POST(req: Request) {
         }
       }
     }
+
+    // Notify clients about the new message
+    await emitDataUpdate(userId, {
+      type: 'message-created',
+      channelId: message.channelId,
+      data: {
+        ...message,
+        parentMessageId: message.parentMessageId || undefined,
+        editedAt: message.editedAt || undefined
+      }
+    });
 
     return NextResponse.json(message)
   } catch (error) {

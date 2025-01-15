@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getAuth } from '@clerk/nextjs/server'
+import { emitDataUpdate } from '@/lib/socket'
 
 const PROTECTED_CHANNELS = ['general', 'random']
 
@@ -11,7 +12,7 @@ export async function DELETE(request: NextRequest) {
       return new NextResponse("Unauthorized", { status: 401 })
     }
 
-    const channelId = request.nextUrl.pathname.split('/')[3] // Get channelId from URL
+    const channelId = request.nextUrl.pathname.split('/')[3]
 
     // Check if this is a protected channel
     const channel = await prisma.channel.findUnique({
@@ -69,6 +70,15 @@ export async function DELETE(request: NextRequest) {
         }
       })
     ])
+
+    // Notify clients about the channel deletion
+    await emitDataUpdate(userId, {
+      type: 'channel-deleted',
+      data: {
+        id: channelId,
+        name: channel.name
+      }
+    });
 
     return NextResponse.json({ success: true })
   } catch (error) {

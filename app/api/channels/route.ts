@@ -4,6 +4,7 @@ import { getAuth } from '@clerk/nextjs/server'
 import { validateChannelCreation } from '../middleware/channelValidation'
 import { Prisma } from '@prisma/client'
 import { getBotId } from '@/lib/bot'
+import { emitDataUpdate } from '@/lib/socket'
 
 const DEFAULT_CHANNELS = ['general', 'random']
 const MAX_RETRIES = 3
@@ -144,6 +145,13 @@ export async function POST(req: NextRequest) {
 
       try {
         const channel = await createDMChannel(channelName, sortedUserIds)
+        await emitDataUpdate(userId, {
+          type: 'channel-created',
+          data: {
+            ...channel,
+            memberIds: sortedUserIds
+          }
+        });
         return NextResponse.json(channel)
       } catch (error) {
         console.error('Failed to create DM channel:', error)
@@ -197,8 +205,20 @@ export async function POST(req: NextRequest) {
         memberships: {
           create: memberships
         }
+      },
+      include: {
+        memberships: true
       }
     })
+
+    // Notify clients about the new channel
+    await emitDataUpdate(userId, {
+      type: 'channel-created',
+      data: {
+        ...channel,
+        memberIds: channel.memberships.map(m => m.userId)
+      }
+    });
 
     return NextResponse.json(channel)
   } catch (error) {

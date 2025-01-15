@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { auth } from '@clerk/nextjs/server'
+import { getAuth } from '@clerk/nextjs/server'
+import { emitDataUpdate } from '@/lib/socket'
 
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   try {
-    const { userId } = await auth()
+    const { userId } = getAuth(req)
     if (!userId) {
       return new NextResponse('Unauthorized', { status: 401 })
     }
@@ -16,6 +17,14 @@ export async function PATCH(req: Request) {
       data: { isOnline }
     })
 
+    await emitDataUpdate(userId, {
+      type: 'user-status-changed',
+      data: {
+        userId,
+        isOnline
+      }
+    });
+    
     return NextResponse.json(user)
   } catch (error) {
     console.error('Failed to update online status:', error)

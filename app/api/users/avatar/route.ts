@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getAuth } from '@clerk/nextjs/server'
+import { emitDataUpdate } from '@/lib/socket'
 
 export async function PATCH(req: NextRequest) {
   try {
@@ -19,6 +20,17 @@ export async function PATCH(req: NextRequest) {
       },
     })
     
+    // Notify clients about the avatar change
+    await emitDataUpdate(userId, {
+      type: 'user-updated',
+      data: {
+        userId,
+        avatar: updatedUser.avatar || undefined,
+        name: updatedUser.name || undefined,
+        status: updatedUser.status || undefined
+      }
+    });
+
     return NextResponse.json(updatedUser)
   } catch (error) {
     console.error('Failed to update user avatar:', error)

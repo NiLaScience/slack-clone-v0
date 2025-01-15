@@ -31,21 +31,18 @@ export interface ChannelMembership {
   createdAt: Date;
 }
 
-export interface Message {
+export type Message = {
   id: string;
   content: string;
   senderId: string;
   channelId: string;
   parentMessageId?: string;
-  createdAt: string;
-  attachments?: Attachment[];
+  createdAt: Date;
+  editedAt?: Date;
   isDeleted?: boolean;
-  editedAt?: string;
-  editHistory?: {
-    content: string;
-    editedAt: string;
-  }[];
-}
+  reactions?: Reaction[];
+  attachments?: Attachment[];
+};
 
 export interface Reaction {
   id: string;

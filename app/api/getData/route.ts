@@ -31,25 +31,66 @@ export async function GET(req: NextRequest) {
     // Ensure default channels exist
     await ensureDefaultChannels()
 
-    const { userId } = getAuth(req)
+    const userId = req.headers.get('x-clerk-user-id')
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 })
     }
 
-    // Get all data
+    // Get all data with limits and selective fields
     const [channels, messages, users, reactions] = await Promise.all([
       prisma.channel.findMany({
-        include: {
-          memberships: true
+        select: {
+          id: true,
+          name: true,
+          isPrivate: true,
+          isDM: true,
+          isSelfNote: true,
+          memberships: {
+            select: {
+              userId: true
+            }
+          }
         }
       }),
       prisma.message.findMany({
-        include: {
-          attachments: true
+        take: 100, // Limit to last 100 messages
+        orderBy: {
+          createdAt: 'desc'
+        },
+        select: {
+          id: true,
+          content: true,
+          senderId: true,
+          channelId: true,
+          createdAt: true,
+          editedAt: true,
+          attachments: {
+            select: {
+              id: true,
+              filename: true,
+              fileUrl: true,
+              contentType: true
+            }
+          }
         }
       }),
-      prisma.user.findMany(),
-      prisma.reaction.findMany()
+      prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          avatar: true,
+          status: true,
+          isBot: true
+        }
+      }),
+      prisma.reaction.findMany({
+        select: {
+          id: true,
+          emoji: true,
+          messageId: true,
+          userId: true
+        }
+      })
     ])
 
     // Transform channels to include memberIds
@@ -60,7 +101,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       channels: transformedChannels,
-      messages,
+      messages: messages.reverse(), // Reverse to get chronological order
       users,
       reactions
     })

@@ -8,6 +8,7 @@ import { MessageList } from '@/components/MessageList'
 import { ThreadView } from '@/components/ThreadView'
 import { SearchBar } from '@/components/SearchBar'
 import { Message, Channel, User, Reaction } from '@/types/dataStructures'
+import Pusher from 'pusher-js'
 
 type AppData = {
   messages: Message[]
@@ -22,8 +23,11 @@ export default function Home() {
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null)
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null)
   const [isActive, setIsActive] = useState(true)
+  const [isSocketConnected, setIsSocketConnected] = useState(false)
   const inactivityTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
+  const pusherRef = useRef<Pusher | null>(null)
   const INACTIVITY_TIMEOUT = 5 * 60 * 1000 // 5 minutes
+  const POLLING_INTERVAL = 10000 // 10 seconds as fallback
 
   // Function to update online status
   const updateOnlineStatus = async (isOnline: boolean) => {
@@ -115,6 +119,178 @@ export default function Home() {
     }
   }, [userId]) // Only run when userId changes
 
+  // Pusher setup
+  useEffect(() => {
+    if (!userId) return;
+
+    // Initialize Pusher
+    pusherRef.current = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+      enabledTransports: ['ws', 'wss']
+    });
+
+    const pusher = pusherRef.current;
+
+    // Subscribe to global updates
+    const globalChannel = pusher.subscribe('global');
+    
+    // Debug logging
+    globalChannel.bind('pusher:subscription_succeeded', () => {
+      console.log('Successfully subscribed to global channel');
+    });
+
+    globalChannel.bind('pusher:subscription_error', (error: any) => {
+      console.error('Failed to subscribe to global channel:', error);
+    });
+
+    // User events
+    globalChannel.bind('user-status-changed', (data: { userId: string, isOnline: boolean }) => {
+      setData(prevData => {
+        if (!prevData) return prevData;
+        return {
+          ...prevData,
+          users: prevData.users.map(u => 
+            u.id === data.userId ? { ...u, isOnline: data.isOnline } : u
+          )
+        };
+      });
+    });
+
+    globalChannel.bind('user-updated', (data: { userId: string, avatar?: string, name?: string, status?: string }) => {
+      setData(prevData => {
+        if (!prevData) return prevData;
+        return {
+          ...prevData,
+          users: prevData.users.map(u => 
+            u.id === data.userId ? { ...u, ...data } : u
+          )
+        };
+      });
+    });
+
+    // Channel events
+    globalChannel.bind('channel-created', (data: Channel) => {
+      setData(prevData => {
+        if (!prevData) return prevData;
+        return {
+          ...prevData,
+          channels: [...prevData.channels, data]
+        };
+      });
+    });
+
+    globalChannel.bind('channel-deleted', (data: { id: string }) => {
+      setData(prevData => {
+        if (!prevData) return prevData;
+        return {
+          ...prevData,
+          channels: prevData.channels.filter(c => c.id !== data.id)
+        };
+      });
+    });
+
+    // Connection status
+    pusher.connection.bind('connected', () => {
+      console.log('Pusher connected');
+      setIsSocketConnected(true);
+    });
+
+    pusher.connection.bind('error', (error: any) => {
+      console.error('Pusher connection error:', error);
+      setIsSocketConnected(false);
+    });
+
+    pusher.connection.bind('disconnected', () => {
+      console.log('Pusher disconnected');
+      setIsSocketConnected(false);
+    });
+
+    return () => {
+      globalChannel.unbind_all();
+      pusher.unsubscribe('global');
+      pusher.disconnect();
+      pusherRef.current = null;
+    };
+  }, [userId]);
+
+  // Channel subscription
+  useEffect(() => {
+    const pusher = pusherRef.current;
+    if (!pusher || !selectedChannelId) return;
+
+    // Subscribe to channel-specific updates
+    const channel = pusher.subscribe(`channel-${selectedChannelId}`);
+    
+    // Message events
+    channel.bind('message-created', (data: Message) => {
+      setData(prevData => {
+        if (!prevData) return prevData;
+        return {
+          ...prevData,
+          messages: [...prevData.messages, data]
+        };
+      });
+    });
+
+    channel.bind('message-updated', (data: Message) => {
+      setData(prevData => {
+        if (!prevData) return prevData;
+        return {
+          ...prevData,
+          messages: prevData.messages.map(m => 
+            m.id === data.id ? data : m
+          )
+        };
+      });
+    });
+
+    channel.bind('message-deleted', (data: { id: string }) => {
+      setData(prevData => {
+        if (!prevData) return prevData;
+        return {
+          ...prevData,
+          messages: prevData.messages.filter(m => m.id !== data.id)
+        };
+      });
+    });
+
+    // Reaction events
+    channel.bind('reaction-toggled', (data: { 
+      messageId: string, 
+      action: 'added' | 'removed',
+      reaction?: Reaction,
+      reactionId?: string 
+    }) => {
+      setData(prevData => {
+        if (!prevData) return prevData;
+        return {
+          ...prevData,
+          messages: prevData.messages.map(msg => {
+            if (msg.id === data.messageId) {
+              if (data.action === 'added' && data.reaction) {
+                return {
+                  ...msg,
+                  reactions: [...(msg.reactions || []), data.reaction]
+                };
+              } else if (data.action === 'removed' && data.reactionId) {
+                return {
+                  ...msg,
+                  reactions: (msg.reactions || []).filter(r => r.id !== data.reactionId)
+                };
+              }
+            }
+            return msg;
+          })
+        };
+      });
+    });
+
+    return () => {
+      channel.unbind_all();
+      pusher.unsubscribe(`channel-${selectedChannelId}`);
+    };
+  }, [selectedChannelId]);
+
   // Handle polling and activity tracking
   useEffect(() => {
     // Set up activity tracking
@@ -153,53 +329,31 @@ export default function Home() {
     window.addEventListener('beforeunload', handleBeforeUnload)
     window.addEventListener('pagehide', handleBeforeUnload)
 
-    // Start polling
+    // Start polling (reduced frequency, as fallback)
     const pollInterval = setInterval(async () => {
-      try {
-        // Send heartbeat first
-        await fetch('/api/users/heartbeat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        })
-
-        const dataRes = await fetch('/api/getData')
-        if (dataRes.ok) {
-          const newData = await dataRes.json()
-          setData(prevData => {
-            if (!prevData) return newData
-            
-            // Only update if there are actual changes
-            const hasNewMessages = newData.messages.some((newMsg: Message) => 
-              !prevData.messages.find(oldMsg => oldMsg.id === newMsg.id)
-            )
-            const hasUpdatedMessages = newData.messages.some((newMsg: Message) => {
-              const oldMsg = prevData.messages.find(m => m.id === newMsg.id)
-              return oldMsg && (
-                oldMsg.content !== newMsg.content ||
-                oldMsg.isDeleted !== newMsg.isDeleted ||
-                oldMsg.editedAt !== newMsg.editedAt
-              )
-            })
-            const hasNewReactions = newData.reactions.some((newReact: Reaction) => 
-              !prevData.reactions.find(oldReact => oldReact.id === newReact.id)
-            )
-            const hasUserStatusChanges = newData.users.some((newUser: User) => {
-              const oldUser = prevData.users.find(u => u.id === newUser.id)
-              return oldUser && (
-                oldUser.isOnline !== newUser.isOnline ||
-                oldUser.status !== newUser.status
-              )
-            })
-            
-            return (hasNewMessages || hasUpdatedMessages || hasNewReactions || hasUserStatusChanges) 
-              ? newData 
-              : prevData
+      if (!isSocketConnected) { // Only poll when socket is disconnected
+        try {
+          // Send heartbeat first
+          await fetch('/api/users/heartbeat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
           })
+
+          const dataRes = await fetch('/api/getData')
+          if (dataRes.ok) {
+            const newData = await dataRes.json()
+            setData(prevData => {
+              if (!prevData) return newData
+              return normalizeDataForComparison(prevData) !== normalizeDataForComparison(newData) 
+                ? newData 
+                : prevData
+            })
+          }
+        } catch (error) {
+          console.error('Error polling for new data:', error)
         }
-      } catch (error) {
-        console.error('Error polling for new data:', error)
       }
-    }, 3000)
+    }, POLLING_INTERVAL)
 
     return () => {
       // Clean up all event listeners
@@ -216,7 +370,7 @@ export default function Home() {
       // Set user as offline when component unmounts
       updateOnlineStatus(false)
     }
-  }, [userId, isActive, INACTIVITY_TIMEOUT]) // Include INACTIVITY_TIMEOUT in deps
+  }, [userId, isActive, INACTIVITY_TIMEOUT, isSocketConnected]) // Include INACTIVITY_TIMEOUT in deps
 
   if (!data || !userId) return null
 
