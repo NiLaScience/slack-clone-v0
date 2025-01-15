@@ -6,7 +6,7 @@ import { Channel, User as UserType } from "@/types/dataStructures"
 import { CreateChannelDialog } from "./CreateChannelDialog"
 import { UserMenu } from "./UserMenu"
 import { CircleStatus } from "@/components/ui/circle-status"
-import { SignOutButton } from "@clerk/nextjs"
+import { SignOutButton, useClerk } from "@clerk/nextjs"
 import { getChannelDisplayName } from "@/lib/utils"
 import { useState } from "react"
 import {
@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { useRouter } from "next/navigation";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -53,6 +54,8 @@ export function Sidebar({
 }: SidebarProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const currentUser = users.find(user => user.id === currentUserId)
+  const { signOut } = useClerk();
+  const router = useRouter();
   if (!currentUser) return null
 
   // Separate and sort channels
@@ -215,12 +218,16 @@ export function Sidebar({
             onSetAvatar={onSetUserAvatar}
             onSetName={onSetUserName}
           />
-          <SignOutButton>
-            <Button variant="ghost" className="w-full justify-start hover:bg-gray-700 text-gray-300 hover:text-white">
-              <LogOut className="mr-2 h-4 w-4 shrink-0" />
-              Sign Out
-            </Button>
-          </SignOutButton>
+          <button
+            onClick={async () => {
+              await signOut();
+              router.push("/sign-in");
+            }}
+            className="w-full flex items-center px-3 py-2 text-sm hover:bg-gray-700 text-gray-300 hover:text-white"
+          >
+            <LogOut className="mr-2 h-4 w-4 shrink-0" />
+            Sign Out
+          </button>
         </div>
       </div>
 
