@@ -3,9 +3,9 @@
   "installCommand": "npm install",
   "framework": "nextjs",
   "functions": {
-    "app/api/**/*.ts": {
+    "app/**/*.ts": {
       "maxDuration": 60,
-      "memory": 2999
+      "memory": 1024
     }
   }
 } 
