@@ -12,6 +12,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
 interface UserMenuProps {
   user: {
@@ -181,12 +182,20 @@ export function UserMenu({ user, onSetStatus, onSetAvatar, onSetName }: UserMenu
               <DialogTitle>Change Avatar</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <Input
-                value={newAvatar}
-                onChange={(e) => setNewAvatar(e.target.value)}
-                placeholder="Enter emoji for avatar"
-              />
-              <Button onClick={handleAvatarSubmit}>Save</Button>
+              <div className="flex flex-col items-center gap-4">
+                <div className="text-4xl">{newAvatar || '👤'}</div>
+                <EmojiPicker 
+                  onEmojiClick={(emojiData: EmojiClickData) => {
+                    setNewAvatar(emojiData.emoji);
+                  }}
+                  autoFocusSearch={false}
+                  width="100%"
+                  height={400}
+                />
+                <Button onClick={handleAvatarSubmit} className="mt-4">
+                  Save Avatar
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

@@ -1,6 +1,7 @@
 {
+  "/api/users/avatar/route": "app/api/users/avatar/route.js",
+  "/api/users/online/route": "app/api/users/online/route.js",
   "/api/getData/route": "app/api/getData/route.js",
-  "/api/users/status/route": "app/api/users/status/route.js",
-  "/api/users/name/route": "app/api/users/name/route.js",
+  "/api/users/profile/create/route": "app/api/users/profile/create/route.js",
   "/page": "app/page.js"
 }
