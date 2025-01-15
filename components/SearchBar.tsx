@@ -221,7 +221,7 @@ export function SearchBar({ onSelectChannel, onOpenThread }: SearchBarProps) {
   }
 
   return (
-    <div className="w-full border-b border-gray-700 bg-gray-800 relative z-10">
+    <div className="w-full border-b border-gray-700 bg-gray-800 relative z-0">
       <div className="flex items-center h-14 px-4 gap-2">
         <Search className="h-4 w-4 text-gray-400" />
         <Input
@@ -241,9 +241,6 @@ export function SearchBar({ onSelectChannel, onOpenThread }: SearchBarProps) {
         >
           Search
         </Button>
-      </div>
-      <div className="text-sm text-muted-foreground">
-        Press &quot;/&quot; to open search
       </div>
     </div>
   )

@@ -4,7 +4,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Hash, Menu, LogOut, Plus, Trash2 } from 'lucide-react'
 import { Channel, User as UserType } from "@/types/dataStructures"
 import { CreateChannelDialog } from "./CreateChannelDialog"
-import { UserStatusMenu } from "./UserStatusMenu"
+import { UserMenu } from "./UserMenu"
 import { CircleStatus } from "@/components/ui/circle-status"
 import { SignOutButton } from "@clerk/nextjs"
 import { getChannelDisplayName } from "@/lib/utils"
@@ -209,7 +209,7 @@ export function Sidebar({
       {/* Bottom Section - Always visible */}
       <div className="flex-shrink-0 p-4 border-t border-gray-700 mt-auto">
         <div className="space-y-4 text-white">
-          <UserStatusMenu
+          <UserMenu
             user={currentUser}
             onSetStatus={onSetUserStatus}
             onSetAvatar={onSetUserAvatar}

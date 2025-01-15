@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
-interface UserStatusMenuProps {
+interface UserMenuProps {
   user: {
     id: string;
     name: string;
@@ -28,7 +28,7 @@ interface UserStatusMenuProps {
   onSetName: (newName: string) => void;
 }
 
-export function UserStatusMenu({ user, onSetStatus, onSetAvatar, onSetName }: UserStatusMenuProps) {
+export function UserMenu({ user, onSetStatus, onSetAvatar, onSetName }: UserMenuProps) {
   const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
   const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
   const [isPromptDialogOpen, setIsPromptDialogOpen] = useState(false);

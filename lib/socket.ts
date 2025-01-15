@@ -44,7 +44,7 @@ export async function emitDataUpdate(channelId?: string) {
   }
 
   try {
-    const response = await fetch('http://localhost:3000/api/getData')
+    const response = await fetch('/api/getData')
     const data = await response.json()
     
     if (channelId) {
