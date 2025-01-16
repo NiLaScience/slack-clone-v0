@@ -34,10 +34,11 @@ export async function POST(req: NextRequest) {
 
     // Extract source information
     const sources = relevantDocs?.map(doc => ({
-      filename: doc.filename,
-      pageNumber: doc.pageNumber,
-      chunkIndex: doc.chunkIndex
-    })) || []
+      filename: doc.filename || '',
+      pageNumber: doc.pageNumber || 1,
+      chunkIndex: doc.chunkIndex || 0,
+      documentId: doc.documentId // Use the documentId directly
+    })).filter(source => source.filename && source.documentId) || []
 
     // Call OpenAI with context
     const response = await openai.chat.completions.create({

@@ -1,7 +1,7 @@
 'use client';
 
 import { useUser } from "@clerk/nextjs";
-import { redirect } from "next/navigation";
+import { redirect, useSearchParams } from "next/navigation";
 import { FileUpload } from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,8 +18,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Pusher from 'pusher-js';
+import { cn } from "@/lib/utils";
 
 interface UserDocument {
   id: string;
@@ -34,7 +35,10 @@ interface UserDocument {
 export default function MyDocsPage() {
   const { user } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [documents, setDocuments] = useState<UserDocument[]>([]);
+  const highlightedDocRef = useRef<HTMLDivElement>(null);
+  const highlightedDocId = searchParams.get('highlight');
 
   const fetchDocuments = async () => {
     const url = "/api/users/docs";
@@ -102,6 +106,13 @@ export default function MyDocsPage() {
     }
   };
 
+  // Scroll to highlighted document
+  useEffect(() => {
+    if (highlightedDocId && highlightedDocRef.current) {
+      highlightedDocRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [highlightedDocId, documents]);
+
   return (
     <div className="flex-1 flex flex-col h-full bg-background relative">
       <Button 
@@ -134,7 +145,11 @@ export default function MyDocsPage() {
             {documents.map((doc: UserDocument) => (
               <div
                 key={doc.id}
-                className="flex items-center justify-between p-4 rounded-lg border bg-card"
+                ref={doc.id === highlightedDocId ? highlightedDocRef : null}
+                className={cn(
+                  "flex items-center justify-between p-4 rounded-lg border bg-card transition-colors duration-300",
+                  doc.id === highlightedDocId && "bg-primary/5 border-primary"
+                )}
               >
                 <div className="flex items-center gap-3">
                   <FileText className="h-8 w-8 text-blue-500" />

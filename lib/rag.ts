@@ -147,12 +147,12 @@ export async function queryMessages(query: string, channelId?: string, ownerId?:
     ownerId: match.metadata?.ownerId,
     createdAt: match.metadata?.createdAt,
     type: match.metadata?.type,
+    documentId: match.metadata?.documentId,
+    filename: match.metadata?.filename,
+    pageNumber: match.metadata?.pageNumber,
+    chunkIndex: match.metadata?.chunkIndex,
     ...(match.metadata?.type === 'pdf_chunk' && {
       attachmentId: match.metadata.attachmentId,
-      filename: match.metadata.filename,
-      pageNumber: match.metadata.pageNumber,
-      chunkIndex: match.metadata.chunkIndex,
-      totalChunks: match.metadata.totalChunks,
     })
   }));
 } 

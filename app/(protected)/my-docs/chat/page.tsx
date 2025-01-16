@@ -16,6 +16,7 @@ interface ChatMessage {
     filename: string;
     pageNumber: number;
     chunkIndex: number;
+    documentId?: string;
   }>;
 }
 
@@ -103,7 +104,13 @@ export default function DocChatPage() {
                     <div>Sources:</div>
                     {message.sources.map((source, idx) => (
                       <div key={idx} className="ml-2">
-                        • {source.filename} (Page {source.pageNumber}, Section {source.chunkIndex + 1})
+                        <Button 
+                          variant="link" 
+                          className="h-auto p-0 text-xs text-muted-foreground hover:text-primary"
+                          onClick={() => source.documentId && router.push(`/my-docs?highlight=${source.documentId}`)}
+                        >
+                          • {source.filename} (Page {source.pageNumber}, Section {source.chunkIndex + 1})
+                        </Button>
                       </div>
                     ))}
                   </div>
