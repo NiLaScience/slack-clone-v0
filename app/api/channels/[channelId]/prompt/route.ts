@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
-export async function PUT(request: NextRequest) {
+export async function PATCH(request: NextRequest) {
   try {
     const { prompt } = await request.json();
     const channelId = request.nextUrl.pathname.split('/')[3]; // Get channelId from URL

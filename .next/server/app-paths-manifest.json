@@ -2,6 +2,9 @@
   "/api/users/online/route": "app/api/users/online/route.js",
   "/api/users/profile/create/route": "app/api/users/profile/create/route.js",
   "/api/getData/route": "app/api/getData/route.js",
-  "/sign-in/[[...sign-in]]/page": "app/sign-in/[[...sign-in]]/page.js",
+  "/api/channels/join/route": "app/api/channels/join/route.js",
+  "/api/channels/[channelId]/route": "app/api/channels/[channelId]/route.js",
+  "/api/channels/[channelId]/prompt/route": "app/api/channels/[channelId]/prompt/route.js",
+  "/api/users/prompt/route": "app/api/users/prompt/route.js",
   "/(protected)/page": "app/(protected)/page.js"
 }
