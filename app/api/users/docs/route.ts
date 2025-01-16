@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getAuth } from "@clerk/nextjs/server"
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
-import { auth } from "@clerk/nextjs/server"
 import { prisma } from '@/lib/db'
 import { processUserPdf } from '@/lib/pdfUserDocs'
 import { randomUUID } from 'crypto'
+import { emitDataUpdate } from '@/lib/socket'
 
 const s3Client = new S3Client({
   region: process.env.S3_REGION,
@@ -15,18 +16,14 @@ const s3Client = new S3Client({
 
 export async function GET(req: NextRequest) {
   try {
-    // Check auth
-    const session = await auth()
-    if (!session?.userId) {
-      return new NextResponse(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      )
+    const { userId } = getAuth(req)
+    if (!userId) {
+      return new NextResponse("Unauthorized", { status: 401 })
     }
 
     // Fetch user's documents
     const documents = await prisma.userDocument.findMany({
-      where: { userId: session.userId },
+      where: { userId },
       orderBy: { createdAt: 'desc' }
     })
 
@@ -34,10 +31,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('Error fetching documents:', error)
     return new NextResponse(
-      JSON.stringify({ 
-        error: 'Failed to fetch documents',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      }),
+      JSON.stringify({ error: 'Failed to fetch documents', details: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }
@@ -45,13 +39,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    // Check auth
-    const session = await auth()
-    if (!session?.userId) {
-      return new NextResponse(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      )
+    const { userId } = getAuth(req)
+    if (!userId) {
+      return new NextResponse("Unauthorized", { status: 401 })
     }
 
     // Parse form data
@@ -76,7 +66,7 @@ export async function POST(req: NextRequest) {
     const bytes = new Uint8Array(8)
     crypto.getRandomValues(bytes)
     const uniqueId = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
-    const key = `users/${session.userId}/docs/${uniqueId}-${file.name}`
+    const key = `users/${userId}/docs/${uniqueId}-${file.name}`
     
     // Convert file to buffer
     const fileBuffer = Buffer.from(await file.arrayBuffer())
@@ -99,7 +89,7 @@ export async function POST(req: NextRequest) {
     const document = await prisma.userDocument.create({
       data: {
         id: documentId,
-        userId: session.userId,
+        userId,
         filename: file.name,
         fileUrl,
         contentType: file.type,
@@ -109,8 +99,23 @@ export async function POST(req: NextRequest) {
     })
 
     // Process PDF in background
-    processUserPdf(session.userId, documentId, fileUrl, file.name)
+    processUserPdf(userId, documentId, fileUrl, file.name)
       .catch(error => console.error('Error processing PDF:', error))
+    
+    // Notify clients about the new document
+    await emitDataUpdate({
+      type: 'document-created',
+      userId,
+      data: {
+        id: document.id,
+        userId: document.userId,
+        filename: document.filename,
+        fileUrl: document.fileUrl,
+        contentType: document.contentType,
+        createdAt: document.createdAt,
+        updatedAt: document.updatedAt
+      }
+    })
     
     return NextResponse.json({ 
       documentId: document.id,
@@ -121,10 +126,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Upload error:', error)
     return new NextResponse(
-      JSON.stringify({ 
-        error: 'Upload failed',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      }),
+      JSON.stringify({ error: 'Upload failed', details: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }

@@ -42,13 +42,18 @@ export default function MyDocsPage() {
     }
 
     const fetchDocuments = async () => {
+      const url = "/api/users/docs";
+      console.log("Fetching documents from:", url);
       try {
-        const res = await fetch("/api/users/docs");
+        const res = await fetch(url);
+        console.log("Response status:", res.status);
         if (!res.ok) {
           const error = await res.json();
+          console.log("Error response:", error);
           throw new Error(error.message || 'Failed to fetch documents');
         }
         const data = await res.json();
+        console.log("Received data:", data);
         setDocuments(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Failed to fetch documents:", err);

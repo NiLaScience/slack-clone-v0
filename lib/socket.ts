@@ -1,5 +1,5 @@
 import Pusher from 'pusher'
-import { Message, Channel, Reaction } from '@/types/dataStructures'
+import { Message, Channel, Reaction, UserDocument } from '@/types/dataStructures'
 
 const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID!,
@@ -27,7 +27,9 @@ type UpdateType =
       avatar?: string;
       name?: string;
       status?: string;
-    } };
+    } }
+  | { type: 'document-created'; data: UserDocument; userId: string }
+  | { type: 'document-deleted'; data: { id: string }; userId: string };
 
 export async function emitDataUpdate(update: UpdateType) {
   try {
@@ -36,6 +38,9 @@ export async function emitDataUpdate(update: UpdateType) {
     if ('channelId' in update) {
       // Channel-specific update
       await pusher.trigger(`channel-${update.channelId}`, eventName, update.data)
+    } else if ('userId' in update) {
+      // User-specific update
+      await pusher.trigger(`user-${update.userId}`, eventName, update.data)
     } else {
       // Global update
       await pusher.trigger('global', eventName, update.data)

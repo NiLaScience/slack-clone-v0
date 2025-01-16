@@ -1,6 +1,5 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { Readable } from "stream";
-import pdfParse from 'pdf-parse';
 import { embedMessage } from "./rag";
 import { randomUUID } from "crypto";
 import { chunkText, streamToBuffer } from "./pdf";
@@ -64,6 +63,9 @@ export async function processUserPdf(
     console.warn('[PDF] Converting stream to buffer...');
     const buffer = await streamToBuffer(response.Body as Readable);
     console.warn('[PDF] Buffer size:', buffer.length);
+    
+    // Dynamically import pdf-parse
+    const pdfParse = (await import('pdf-parse')).default;
     
     // Parse PDF
     console.warn('[PDF] Parsing PDF...');

@@ -1,6 +1,5 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { Readable } from "stream";
-import pdfParse from 'pdf-parse';
 import { embedMessage } from "./rag";
 import { randomUUID } from "crypto";
 
@@ -81,7 +80,7 @@ export async function processPdfAttachment(
     
     // Extract bucket and key from S3 URL
     const url = new URL(fileUrl);
-    const key = decodeURIComponent(url.pathname.slice(1)); // Remove leading slash and decode
+    const key = decodeURIComponent(url.pathname.slice(1));
     console.warn('[PDF] Extracted S3 key:', key);
     
     // Get file from S3
@@ -103,6 +102,9 @@ export async function processPdfAttachment(
     console.warn('[PDF] Converting stream to buffer...');
     const buffer = await streamToBuffer(response.Body as Readable);
     console.warn('[PDF] Buffer size:', buffer.length);
+    
+    // Dynamically import pdf-parse
+    const pdfParse = (await import('pdf-parse')).default;
     
     // Parse PDF
     console.warn('[PDF] Parsing PDF...');

@@ -1,3 +1,8 @@
 {
-  "/(protected)/page": "app/(protected)/page.js"
+  "/api/users/online/route": "app/api/users/online/route.js",
+  "/api/users/profile/create/route": "app/api/users/profile/create/route.js",
+  "/api/getData/route": "app/api/getData/route.js",
+  "/api/users/docs/route": "app/api/users/docs/route.js",
+  "/(protected)/page": "app/(protected)/page.js",
+  "/(protected)/my-docs/page": "app/(protected)/my-docs/page.js"
 }

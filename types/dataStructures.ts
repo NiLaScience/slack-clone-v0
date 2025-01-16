@@ -61,3 +61,13 @@ export interface Attachment {
   createdAt: Date;
 }
 
+export interface UserDocument {
+  id: string;
+  userId: string;
+  filename: string;
+  fileUrl: string;
+  contentType: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
