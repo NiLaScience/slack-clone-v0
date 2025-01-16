@@ -6,13 +6,17 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { queryMessages } from "@/lib/rag";
 import { useRouter } from "next/navigation";
 
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   context?: string[];
+  sources?: Array<{
+    filename: string;
+    pageNumber: number;
+    chunkIndex: number;
+  }>;
 }
 
 export default function DocChatPage() {
@@ -35,26 +39,11 @@ export default function DocChatPage() {
       setIsLoading(true);
       setMessages(prev => [...prev, { role: "user", content: query }]);
       
-      // Get relevant documents
-      const relevantDocs = await queryMessages(query, undefined, userId);
-      const context = relevantDocs
-        ?.map(doc => (typeof doc.text === 'string' ? doc.text : ''))
-        .filter(Boolean);
-
-      // Call OpenAI with context
-      const response = await fetch("/api/chat", {
+      // Call our API route instead of queryMessages directly
+      const response = await fetch("/api/users/docs/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: "system",
-              content: `You are a helpful assistant answering questions about the user's personal documents. 
-                       Below is relevant context from their documents:\n\n${context?.join("\n\n") || ''}`
-            },
-            { role: "user", content: query }
-          ]
-        })
+        body: JSON.stringify({ query })
       });
 
       if (!response.ok) throw new Error("Failed to get response");
@@ -63,7 +52,8 @@ export default function DocChatPage() {
       const newMessage: ChatMessage = {
         role: "assistant",
         content: data.content,
-        context: context || []
+        context: data.context || [],
+        sources: data.sources
       };
       setMessages(prev => [...prev, newMessage]);
       
@@ -108,9 +98,14 @@ export default function DocChatPage() {
                 >
                   {message.content}
                 </div>
-                {message.context && (
-                  <div className="text-xs text-muted-foreground">
-                    Based on {message.context.length} document snippets
+                {message.sources && message.sources.length > 0 && (
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <div>Sources:</div>
+                    {message.sources.map((source, idx) => (
+                      <div key={idx} className="ml-2">
+                        • {source.filename} (Page {source.pageNumber}, Section {source.chunkIndex + 1})
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

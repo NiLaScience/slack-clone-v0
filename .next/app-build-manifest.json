@@ -16,6 +16,26 @@
       "static/chunks/main-app.js",
       "static/chunks/app/(protected)/my-docs/page.js"
     ],
+    "/api/users/docs/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/users/docs/route.js"
+    ],
+    "/(protected)/my-docs/chat/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(protected)/my-docs/chat/page.js"
+    ],
+    "/api/users/docs/chat/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/users/docs/chat/route.js"
+    ],
+    "/sign-in/[[...sign-in]]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/sign-in/[[...sign-in]]/page.js"
+    ],
     "/(protected)/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -35,21 +55,6 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/getData/route.js"
-    ],
-    "/api/users/docs/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/users/docs/route.js"
-    ],
-    "/(protected)/my-docs/chat/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(protected)/my-docs/chat/page.js"
-    ],
-    "/api/users/docs/[documentId]/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/users/docs/[documentId]/route.js"
     ]
   }
 }
