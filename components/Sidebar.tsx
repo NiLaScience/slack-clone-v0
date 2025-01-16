@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Hash, Menu, LogOut, Plus, Trash2 } from 'lucide-react'
+import { Hash, Menu, LogOut, Plus, Trash2, FileText } from 'lucide-react'
 import { Channel, User as UserType } from "@/types/dataStructures"
 import { CreateChannelDialog } from "./CreateChannelDialog"
 import { UserMenu } from "./UserMenu"
@@ -156,6 +156,21 @@ export function Sidebar({
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* My Documents Section */}
+          <div>
+            <h2 className="text-lg font-semibold mb-4 text-white">My Documents</h2>
+            <Button
+              variant="ghost"
+              className={`w-full justify-start hover:bg-gray-700 text-gray-300 hover:text-white ${
+                selectedChannelId === 'my-docs' ? 'bg-gray-700 text-white' : ''
+              }`}
+              onClick={() => router.push('/my-docs')}
+            >
+              <FileText className="mr-2 h-4 w-4 shrink-0" />
+              Personal Documents
+            </Button>
           </div>
 
           {/* DMs Section */}

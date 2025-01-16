@@ -1,5 +1,33 @@
 Below is a structured, minimally invasive **implementation plan** to introduce **personal document stores** for users, enabling them to upload PDFs that get parsed and embedded into Pinecone for question-answering (RAG). This plan also ensures the **user bot** in DMs can access these personal documents via the standard Pinecone-based RAG flow.
 
+## Implementation Checklist
+
+- [x] **Database Setup**
+  - [x] Create `UserDocument` model in Prisma schema
+  - [x] Run Prisma migration
+  - [x] Update Pinecone metadata schema to include `ownerId` and `type: 'pdf_chunk'`
+
+- [x] **Backend Infrastructure**
+  - [x] Create `lib/pdfUserDocs.ts` for PDF processing logic
+  - [x] Implement `processUserPdf()` function
+  - [x] Create `/api/users/docs` endpoint for file uploads
+  - [x] Modify `queryMessages()` in `lib/rag.ts` to support `ownerId` filtering
+  - [x] Update user bot logic in `lib/bot.ts` to access personal docs in DMs
+
+- [x] **Frontend Components**
+  - [x] Add "My Documents" link to Sidebar
+  - [x] Create `app/(protected)/my-docs/page.tsx`
+  - [x] Implement PDF upload UI
+  - [x] Create document list view
+  - [x] Build chat interface for document queries
+
+- [ ] **Security & Testing**
+  - [x] Verify authentication in document routes
+  - [ ] Test document ownership filtering
+  - [ ] Validate PDF upload and processing
+  - [ ] Test RAG queries with personal documents
+  - [ ] Verify DM bot access to personal documents
+
 ---
 
 ## 1. Database & Metadata Changes

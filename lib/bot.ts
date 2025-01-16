@@ -39,11 +39,14 @@ export async function handleBotResponse(message: BotResponseParams) {
     // Get the appropriate prompt based on channel type
     let systemPrompt = "You are a helpful assistant in a Slack-like chat. Keep responses concise and conversational.";
     
+    // Track if we're in a DM and who the bot owner is
+    let botOwner;
     if (channel.isDM) {
-      // In DMs, use the other user's prompt
-      const otherUser = channel.memberships.find(m => m.userId !== message.senderId)?.user;
-      if (otherUser?.prompt) {
-        systemPrompt = otherUser.prompt;
+      // In DMs, the bot owner is the user who is NOT the sender
+      // This is the user whose documents we want to access
+      botOwner = channel.memberships.find(m => m.userId !== message.senderId)?.user;
+      if (botOwner?.prompt) {
+        systemPrompt = botOwner.prompt;
         console.log('[BOT] Using user prompt:', systemPrompt);
       }
     } else if (channel.prompt) {
@@ -54,11 +57,16 @@ export async function handleBotResponse(message: BotResponseParams) {
 
     console.log('[BOT] Querying Pinecone for context with:', {
       content: message.content,
-      channelId: message.channelId
+      channelId: message.channelId,
+      ...(botOwner && { ownerId: botOwner.id })
     });
 
-    // Query Pinecone for relevant context
-    const relevantMessages = await queryMessages(message.content, message.channelId);
+    // Query Pinecone for relevant context, including personal docs in DMs
+    const relevantMessages = await queryMessages(
+      message.content,
+      message.channelId,
+      botOwner?.id // Pass bot owner's ID for personal docs in DMs
+    );
     console.log('[BOT] Pinecone results:', JSON.stringify(relevantMessages, null, 2));
 
     const context = relevantMessages?.map(m => m.text).join('\n\n') || '';

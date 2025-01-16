@@ -16,40 +16,20 @@
       "static/chunks/main-app.js",
       "static/chunks/app/(protected)/page.js"
     ],
-    "/api/users/online/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/users/online/route.js"
-    ],
     "/api/users/profile/create/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/users/profile/create/route.js"
     ],
+    "/api/users/online/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/users/online/route.js"
+    ],
     "/api/getData/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/getData/route.js"
-    ],
-    "/api/channels/join/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/channels/join/route.js"
-    ],
-    "/api/channels/[channelId]/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/channels/[channelId]/route.js"
-    ],
-    "/api/channels/[channelId]/prompt/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/channels/[channelId]/prompt/route.js"
-    ],
-    "/api/users/prompt/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/users/prompt/route.js"
     ]
   }
 }

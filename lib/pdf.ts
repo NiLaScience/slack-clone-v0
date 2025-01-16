@@ -14,7 +14,7 @@ const s3Client = new S3Client({
 });
 
 // Function to chunk text with overlap
-function chunkText(text: string, chunkSize: number = 1000, overlap: number = 100): string[] {
+export function chunkText(text: string, chunkSize: number = 1000, overlap: number = 100): string[] {
   const chunks: string[] = [];
   let startIndex = 0;
 
@@ -37,7 +37,7 @@ function chunkText(text: string, chunkSize: number = 1000, overlap: number = 100
   return chunks;
 }
 
-async function streamToBuffer(stream: Readable): Promise<Buffer> {
+export async function streamToBuffer(stream: Readable): Promise<Buffer> {
   const chunks: Buffer[] = [];
   return new Promise((resolve, reject) => {
     stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));

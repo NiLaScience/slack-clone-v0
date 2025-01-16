@@ -2,6 +2,7 @@ import { OpenAIEmbeddings } from "@langchain/openai";
 import { Pinecone } from "@pinecone-database/pinecone";
 import { randomUUID } from "crypto";
 import { PdfChunkMetadata } from "./pdf";
+import { UserDocChunkMetadata } from "./pdfUserDocs";
 
 let pineconeClient: Pinecone | null = null;
 let embedder: OpenAIEmbeddings | null = null;
@@ -67,7 +68,7 @@ export type MessageMetadata = {
 export async function embedMessage(
   content: string,
   id: string | undefined,
-  metadata: MessageMetadata | PdfChunkMetadata
+  metadata: MessageMetadata | PdfChunkMetadata | UserDocChunkMetadata
 ) {
   console.warn(`[RAG] Starting embedding process for ${metadata.type}...`);
   
@@ -109,29 +110,33 @@ export async function embedMessage(
   console.warn('[RAG] Current index stats:', JSON.stringify(stats, null, 2));
 }
 
-export async function queryMessages(query: string, channelId?: string) {
-  console.warn('[RAG] Starting query with:', { query, channelId });
+export async function queryMessages(query: string, channelId?: string, ownerId?: string) {
+  console.warn('[RAG] Starting query with:', { query, channelId, ownerId });
   const { index, embedder } = await initClients();
   
   // Generate query embedding
   const queryEmbedding = await embedder.embedQuery(query);
   console.warn('[RAG] Generated query embedding');
   
-  // Prepare filter if channelId is provided
-  const filter = channelId ? { channelId } : undefined;
+  // Prepare filter
+  const filter: Record<string, any> = {};
+  if (channelId) filter.channelId = channelId;
+  if (ownerId) filter.ownerId = ownerId;
+  
   console.warn('[RAG] Using filter:', filter);
   
   // Query Pinecone
   const results = await index.query({
     vector: queryEmbedding,
-    filter,
+    filter: Object.keys(filter).length > 0 ? filter : undefined,
     topK: 5,
     includeMetadata: true,
   });
   
   console.warn('[RAG] Got results:', {
     totalResults: results.matches?.length || 0,
-    channelMatches: results.matches?.filter(m => m.metadata?.channelId === channelId).length || 0
+    channelMatches: results.matches?.filter(m => m.metadata?.channelId === channelId).length || 0,
+    ownerMatches: results.matches?.filter(m => m.metadata?.ownerId === ownerId).length || 0
   });
   
   return results.matches?.map(match => ({
@@ -139,6 +144,7 @@ export async function queryMessages(query: string, channelId?: string) {
     text: match.metadata?.text,
     messageId: match.metadata?.messageId,
     channelId: match.metadata?.channelId,
+    ownerId: match.metadata?.ownerId,
     createdAt: match.metadata?.createdAt,
     type: match.metadata?.type,
     ...(match.metadata?.type === 'pdf_chunk' && {
