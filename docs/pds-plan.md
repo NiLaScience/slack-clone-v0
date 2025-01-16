@@ -28,6 +28,12 @@ Below is a structured, minimally invasive **implementation plan** to introduce *
   - [ ] Test RAG queries with personal documents
   - [ ] Verify DM bot access to personal documents
 
+- [ ] **Document Chat Improvements**
+  - [ ] Add conversation history to OpenAI API calls
+  - [ ] Implement context window management and token counting
+  - [ ] Add separate loading states for retrieval and AI response
+  - [ ] Improve error handling with specific error messages
+
 ---
 
 ## 1. Database & Metadata Changes
@@ -237,3 +243,40 @@ export default function MyDocsPage() {
 
 ### Final Notes
 This plan keeps changes **straightforward** and **minimal** by leveraging existing PDF parse + embed logic, simply adding a **new table** and **metadata** (ownerId) for personal docs. The existing user bot logic is extended to pass `ownerId` so the user can seamlessly rely on personal documents in their DM conversation.
+
+# Document Chat Improvements
+
+## Current Issues and Planned Fixes
+
+1. **Conversation History**
+   - Current: Each query is independent, AI can't reference previous conversation
+   - Fix: Maintain and pass full conversation history to OpenAI API
+   - Implementation: Update chat state management to include full history in API calls
+
+2. **Error Handling**
+   - Current: Generic error messages don't distinguish between different failure points
+   - Fix: Add specific error handling for:
+     - Document retrieval failures
+     - OpenAI API failures
+     - Context processing issues
+
+3. **Loading States**
+   - Current: Single loading state for entire operation
+   - Fix: Add separate loading indicators for:
+     - Document retrieval
+     - AI response generation
+   - Implementation: Split loading states in UI and backend processing
+
+4. **Context Window Management**
+   - Current: No check on total context size sent to OpenAI
+   - Fix: Add token counting and context management
+   - Implementation:
+     - Add token counting for document chunks
+     - Implement smart context truncation
+     - Prioritize most relevant chunks when near limit
+
+## Implementation Priority
+1. Conversation History - Most impact on user experience
+2. Context Window Management - Prevents potential errors
+3. Loading States - Better UX feedback
+4. Error Handling - More informative error messages

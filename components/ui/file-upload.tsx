@@ -5,12 +5,14 @@ interface FileUploadProps {
   endpoint: string
   accept?: string
   children: ReactNode
+  onUploadComplete?: () => void
 }
 
 export function FileUpload({
   endpoint,
   accept,
-  children
+  children,
+  onUploadComplete
 }: FileUploadProps) {
   const [isUploading, setIsUploading] = useState(false)
   const router = useRouter()
@@ -35,8 +37,11 @@ export function FileUpload({
         throw new Error(data.error || 'Upload failed');
       }
 
-      // Force a hard refresh to get the latest documents
-      window.location.reload();
+      // Use Next.js router to refresh the data instead of full page reload
+      router.refresh();
+      
+      // Call the onUploadComplete callback if provided
+      onUploadComplete?.();
     } catch (error) {
       console.error('Upload error:', error);
       // You might want to show a toast notification here

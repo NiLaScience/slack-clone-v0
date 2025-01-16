@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import Pusher from 'pusher-js';
 
 interface UserDocument {
   id: string;
@@ -35,33 +36,55 @@ export default function MyDocsPage() {
   const router = useRouter();
   const [documents, setDocuments] = useState<UserDocument[]>([]);
 
+  const fetchDocuments = async () => {
+    const url = "/api/users/docs";
+    console.log("Fetching documents from:", url);
+    try {
+      const res = await fetch(url);
+      console.log("Response status:", res.status);
+      if (!res.ok) {
+        const error = await res.json();
+        console.log("Error response:", error);
+        throw new Error(error.message || 'Failed to fetch documents');
+      }
+      const data = await res.json();
+      console.log("Received data:", data);
+      setDocuments(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Failed to fetch documents:", err);
+      setDocuments([]);
+    }
+  };
+
   useEffect(() => {
     if (!user) {
       router.push("/sign-in");
       return;
     }
 
-    const fetchDocuments = async () => {
-      const url = "/api/users/docs";
-      console.log("Fetching documents from:", url);
-      try {
-        const res = await fetch(url);
-        console.log("Response status:", res.status);
-        if (!res.ok) {
-          const error = await res.json();
-          console.log("Error response:", error);
-          throw new Error(error.message || 'Failed to fetch documents');
-        }
-        const data = await res.json();
-        console.log("Received data:", data);
-        setDocuments(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error("Failed to fetch documents:", err);
-        setDocuments([]);
-      }
-    };
-
     fetchDocuments();
+
+    // Initialize Pusher
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+    });
+
+    // Subscribe to user's channel
+    const channel = pusher.subscribe(`user-${user.id}`);
+
+    // Listen for document updates
+    channel.bind('document-created', (data: UserDocument) => {
+      setDocuments(prev => [...prev, data]);
+    });
+
+    channel.bind('document-deleted', (data: { id: string }) => {
+      setDocuments(prev => prev.filter(doc => doc.id !== data.id));
+    });
+
+    return () => {
+      channel.unbind_all();
+      channel.unsubscribe();
+    };
   }, [user, router]);
 
   const handleDelete = async (documentId: string) => {
@@ -99,6 +122,7 @@ export default function MyDocsPage() {
             <FileUpload
               endpoint="/api/users/docs"
               accept="application/pdf"
+              onUploadComplete={fetchDocuments}
             >
               <Button>Upload PDF</Button>
             </FileUpload>

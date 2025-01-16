@@ -1,8 +1,7 @@
 {
-  "/api/users/online/route": "app/api/users/online/route.js",
-  "/api/users/profile/create/route": "app/api/users/profile/create/route.js",
-  "/api/getData/route": "app/api/getData/route.js",
   "/api/users/docs/route": "app/api/users/docs/route.js",
+  "/api/users/docs/[documentId]/route": "app/api/users/docs/[documentId]/route.js",
+  "/(protected)/my-docs/page": "app/(protected)/my-docs/page.js",
   "/(protected)/page": "app/(protected)/page.js",
-  "/(protected)/my-docs/page": "app/(protected)/my-docs/page.js"
+  "/(protected)/my-docs/chat/page": "app/(protected)/my-docs/chat/page.js"
 }

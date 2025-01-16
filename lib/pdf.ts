@@ -13,7 +13,7 @@ const s3Client = new S3Client({
 });
 
 // Function to chunk text with overlap
-export function chunkText(text: string, chunkSize: number = 1000, overlap: number = 100): string[] {
+export function chunkText(text: string, chunkSize: number = 4000, overlap: number = 100): string[] {
   const chunks: string[] = [];
   let startIndex = 0;
 
