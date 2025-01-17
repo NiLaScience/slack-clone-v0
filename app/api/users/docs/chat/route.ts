@@ -29,13 +29,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Get relevant documents
-    const relevantDocs = await queryMessages(query, undefined, userId)
-    const context = relevantDocs
+    const { documentMatches } = await queryMessages(query, undefined, userId)
+    const context = documentMatches
       ?.map(doc => (typeof doc.text === 'string' ? doc.text : ''))
       .filter(Boolean)
 
     // Extract source information (keep all sources even if context is truncated)
-    const sources = relevantDocs?.map(doc => ({
+    const sources = documentMatches?.map(doc => ({
       filename: doc.filename || '',
       pageNumber: doc.pageNumber || 1,
       chunkIndex: doc.chunkIndex || 0,
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
         role: "system" as const,
         content: "You are a helpful assistant answering questions about the user's personal documents."
       },
-      ...history.map(msg => ({
+      ...history.map((msg: { role: string; content: string }) => ({
         role: msg.role as "system" | "user" | "assistant",
         content: msg.content
       })),
