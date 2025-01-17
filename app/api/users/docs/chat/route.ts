@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuth } from "@clerk/nextjs/server"
 import { queryMessages } from '@/lib/rag'
+import { truncateContext } from '@/lib/tokens'
 import OpenAI from 'openai'
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -17,7 +19,7 @@ export async function POST(req: NextRequest) {
 
     // Parse request
     const body = await req.json()
-    const { query } = body
+    const { query, history = [] } = body
 
     if (!query) {
       return new NextResponse(
@@ -32,25 +34,46 @@ export async function POST(req: NextRequest) {
       ?.map(doc => (typeof doc.text === 'string' ? doc.text : ''))
       .filter(Boolean)
 
-    // Extract source information
+    // Extract source information (keep all sources even if context is truncated)
     const sources = relevantDocs?.map(doc => ({
       filename: doc.filename || '',
       pageNumber: doc.pageNumber || 1,
       chunkIndex: doc.chunkIndex || 0,
-      documentId: doc.documentId // Use the documentId directly
+      documentId: doc.documentId
     })).filter(source => source.filename && source.documentId) || []
 
-    // Call OpenAI with context
+    // Prepare base messages
+    const baseMessages = [
+      {
+        role: "system" as const,
+        content: "You are a helpful assistant answering questions about the user's personal documents."
+      },
+      ...history.map(msg => ({
+        role: msg.role as "system" | "user" | "assistant",
+        content: msg.content
+      })),
+      { role: "user" as const, content: query }
+    ] satisfies ChatCompletionMessageParam[]
+
+    // Truncate context if needed
+    const { context: truncatedContext, messages } = truncateContext(
+      context || [],
+      baseMessages
+    )
+
+    // Update system message with truncated context
+    const messagesWithContext: ChatCompletionMessageParam[] = [
+      {
+        role: "system",
+        content: `You are a helpful assistant answering questions about the user's personal documents.\n\nBelow is relevant context from their documents:\n\n${truncatedContext.join("\n\n")}`
+      },
+      ...messages.slice(1)
+    ]
+
+    // Call OpenAI with truncated context and history
     const response = await openai.chat.completions.create({
       model: "gpt-4-0125-preview",
-      messages: [
-        {
-          role: "system",
-          content: `You are a helpful assistant answering questions about the user's personal documents. 
-                   Below is relevant context from their documents:\n\n${context?.join("\n\n") || ''}`
-        },
-        { role: "user", content: query }
-      ],
+      messages: messagesWithContext,
     })
 
     const content = response.choices[0]?.message?.content
@@ -60,7 +83,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ 
       content,
-      context: context || [],
+      context: truncatedContext,
       sources
     })
   } catch (error) {

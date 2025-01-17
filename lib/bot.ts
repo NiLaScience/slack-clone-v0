@@ -41,14 +41,23 @@ export async function handleBotResponse(message: BotResponseParams) {
     
     // Track if we're in a DM and who the bot owner is
     let botOwner;
+    // Check if this is a note-to-self channel (both members are the same user)
+    const isNoteToSelf = channel.isDM && channel.memberships.every(m => m.userId === channel.memberships[0].userId);
+    
     if (channel.isDM) {
-      // In DMs, the bot owner is the user who is NOT the sender
-      // This is the user whose documents we want to access
-      botOwner = channel.memberships.find(m => m.userId !== message.senderId)?.user;
+      if (isNoteToSelf) {
+        // In note-to-self, use the sender's documents
+        botOwner = channel.memberships[0].user;
+      } else {
+        // In regular DMs, the bot owner is the user who is NOT the sender
+        botOwner = channel.memberships.find(m => m.userId !== message.senderId)?.user;
+      }
+
       if (botOwner?.prompt) {
         systemPrompt = botOwner.prompt;
         console.log('[BOT] Using user prompt:', systemPrompt);
       }
+      console.log('[BOT] DM owner identified:', botOwner?.id);
     } else if (channel.prompt) {
       // In channels, use the channel prompt
       systemPrompt = channel.prompt;
@@ -62,14 +71,44 @@ export async function handleBotResponse(message: BotResponseParams) {
     });
 
     // Query Pinecone for relevant context, including personal docs in DMs
-    const relevantMessages = await queryMessages(
-      message.content,
-      message.channelId,
-      botOwner?.id // Pass bot owner's ID for personal docs in DMs
-    );
-    console.log('[BOT] Pinecone results:', JSON.stringify(relevantMessages, null, 2));
+    interface MessageMatch {
+      text: string;
+      messageId?: string;
+      channelId?: string;
+      createdAt?: string;
+      type?: string;
+    }
 
-    const context = relevantMessages?.map(m => m.text).join('\n\n') || '';
+    interface DocumentMatch {
+      text: string;
+      documentId?: string;
+      filename?: string;
+      pageNumber?: number;
+      chunkIndex?: number;
+      type?: string;
+    }
+
+    interface QueryResponse {
+      messageMatches: MessageMatch[];
+      documentMatches: DocumentMatch[];
+    }
+    
+    const { messageMatches, documentMatches } = await queryMessages(
+      message.content,
+      isNoteToSelf ? undefined : message.channelId,
+      channel.isDM ? botOwner?.id : undefined
+    ) as QueryResponse;
+    
+    console.log('[BOT] Pinecone results:', JSON.stringify({ messageMatches, documentMatches }, null, 2));
+
+    // Assemble context, including both messages and documents
+    const context = [
+      ...(messageMatches?.map(m => `Message: ${m.text}`) || []),
+      ...(documentMatches?.map(d => 
+        `Document ${d.filename} (Page ${d.pageNumber}): ${d.text}`
+      ) || [])
+    ].join('\n\n');
+    
     console.log('[BOT] Assembled context:', context);
 
     console.log('[BOT] Calling OpenAI with context length:', context.length);

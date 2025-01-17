@@ -3,9 +3,11 @@ import { Pinecone } from "@pinecone-database/pinecone";
 import { randomUUID } from "crypto";
 import { PdfChunkMetadata } from "./pdf";
 import { UserDocChunkMetadata } from "./pdfUserDocs";
+import { PrismaClient } from "@prisma/client";
 
 let pineconeClient: Pinecone | null = null;
 let embedder: OpenAIEmbeddings | null = null;
+const prisma = new PrismaClient();
 
 function cleanHtml(html: string): string {
   // Remove HTML tags
@@ -111,48 +113,78 @@ export async function embedMessage(
 }
 
 export async function queryMessages(query: string, channelId?: string, ownerId?: string) {
-  console.warn('[RAG] Starting query with:', { query, channelId, ownerId });
+  // Get debug info about channel and user
+  const channel = channelId ? await prisma.channel.findUnique({
+    where: { id: channelId },
+    select: { name: true, isDM: true }
+  }) : null;
+
+  const user = ownerId ? await prisma.user.findUnique({
+    where: { id: ownerId },
+    select: { name: true, email: true }
+  }) : null;
+
+  console.log('[RAG] Starting query with:', {
+    query,
+    channelId,
+    channelName: channel?.name,
+    isDM: channel?.isDM,
+    ownerId,
+    ownerName: user?.name,
+    ownerEmail: user?.email
+  });
+
   const { index, embedder } = await initClients();
   
   // Generate query embedding
   const queryEmbedding = await embedder.embedQuery(query);
-  console.warn('[RAG] Generated query embedding');
+  console.log('[RAG] Generated query embedding');
   
-  // Prepare filter
-  const filter: Record<string, any> = {};
-  if (channelId) filter.channelId = channelId;
-  if (ownerId) filter.ownerId = ownerId;
-  
-  console.warn('[RAG] Using filter:', filter);
-  
-  // Query Pinecone
-  const results = await index.query({
+  // Query messages if channelId provided
+  const messageResults = channelId ? await index.query({
     vector: queryEmbedding,
-    filter: Object.keys(filter).length > 0 ? filter : undefined,
+    filter: { 
+      channelId,
+      type: 'message'
+    },
     topK: 5,
-    includeMetadata: true,
+    includeMetadata: true
+  }) : { matches: [] };
+
+  // Query documents if ownerId provided
+  const documentResults = ownerId ? await index.query({
+    vector: queryEmbedding,
+    filter: { 
+      ownerId,
+      type: 'pdf_chunk'
+    },
+    topK: 5,
+    includeMetadata: true
+  }) : { matches: [] };
+
+  console.log('[RAG] Query results:', {
+    messageMatches: messageResults.matches.length,
+    documentMatches: documentResults.matches.length,
+    messageMetadata: messageResults.matches.map(m => m.metadata),
+    documentMetadata: documentResults.matches.map(m => m.metadata)
   });
-  
-  console.warn('[RAG] Got results:', {
-    totalResults: results.matches?.length || 0,
-    channelMatches: results.matches?.filter(m => m.metadata?.channelId === channelId).length || 0,
-    ownerMatches: results.matches?.filter(m => m.metadata?.ownerId === ownerId).length || 0
-  });
-  
-  return results.matches?.map(match => ({
-    score: match.score,
-    text: match.metadata?.text,
-    messageId: match.metadata?.messageId,
-    channelId: match.metadata?.channelId,
-    ownerId: match.metadata?.ownerId,
-    createdAt: match.metadata?.createdAt,
-    type: match.metadata?.type,
-    documentId: match.metadata?.documentId,
-    filename: match.metadata?.filename,
-    pageNumber: match.metadata?.pageNumber,
-    chunkIndex: match.metadata?.chunkIndex,
-    ...(match.metadata?.type === 'pdf_chunk' && {
-      attachmentId: match.metadata.attachmentId,
-    })
-  }));
+
+  // Return messages and documents separately
+  return {
+    messageMatches: messageResults.matches.map(match => ({
+      text: match.metadata?.text,
+      messageId: match.metadata?.messageId,
+      channelId: match.metadata?.channelId,
+      createdAt: match.metadata?.createdAt,
+      type: match.metadata?.type,
+    })),
+    documentMatches: documentResults.matches.map(match => ({
+      text: match.metadata?.text,
+      documentId: match.metadata?.documentId,
+      filename: match.metadata?.filename,
+      pageNumber: match.metadata?.pageNumber,
+      chunkIndex: match.metadata?.chunkIndex,
+      type: match.metadata?.type,
+    }))
+  };
 } 

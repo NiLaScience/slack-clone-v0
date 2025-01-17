@@ -40,11 +40,20 @@ export default function DocChatPage() {
       setIsLoading(true);
       setMessages(prev => [...prev, { role: "user", content: query }]);
       
-      // Call our API route instead of queryMessages directly
+      // Prepare conversation history
+      const history = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
+      
+      // Call our API route with history
       const response = await fetch("/api/users/docs/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query })
+        body: JSON.stringify({ 
+          query,
+          history 
+        })
       });
 
       if (!response.ok) throw new Error("Failed to get response");
