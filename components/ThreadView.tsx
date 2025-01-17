@@ -3,7 +3,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Message, User, Reaction } from "@/types/dataStructures"
 import { ReactionPicker } from "./ReactionPicker"
 import { Button } from "@/components/ui/button"
-import { X, MoreHorizontal, Pencil, Trash2, PlayCircle, Loader2, PauseCircle } from 'lucide-react'
+import { X, MoreHorizontal, Pencil, Trash2, PlayCircle, Loader2, PauseCircle, Speaker } from 'lucide-react'
 import { MessageInput } from "./MessageInput"
 import { FileAttachment } from "./FileAttachment"
 import {
@@ -12,6 +12,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface ThreadViewProps {
   parentMessage: Message;
@@ -188,22 +194,6 @@ export function ThreadView({
               {message.editedAt && (
                 <span className="text-xs text-gray-500 ml-2">(edited)</span>
               )}
-              {!message.isDeleted && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="ml-2"
-                  onClick={() => handlePlayTTS(message.id, message.content)}
-                >
-                  {loadingMessageId === message.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : audioStates[message.id]?.isPlaying ? (
-                    <PauseCircle className="h-4 w-4" />
-                  ) : (
-                    <PlayCircle className="h-4 w-4" />
-                  )}
-                </Button>
-              )}
               {isCurrentUserMessage && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -257,6 +247,36 @@ export function ThreadView({
                     {emoji} {count > 1 && count}
                   </span>
                 ))}
+              </div>
+            )}
+            {!message.isDeleted && (
+              <div className="flex items-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mr-0"
+                  onClick={() => handlePlayTTS(message.id, message.content)}
+                >
+                  {loadingMessageId === message.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : audioStates[message.id]?.isPlaying ? (
+                    <PauseCircle className="h-4 w-4" />
+                  ) : (
+                    <PlayCircle className="h-4 w-4" />
+                  )}
+                </Button>
+                {audioStates[message.id]?.url && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Speaker className="h-4 w-4 text-muted-foreground ml-1" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Audio cached</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </div>
             )}
           </div>

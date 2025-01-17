@@ -199,8 +199,8 @@ export function Sidebar({
                       <div className="relative w-6 h-6 mr-2 flex items-center justify-center">
                         {channel.isSelfNote ? (
                           <>
-                            <span className="text-xl">{currentUser.avatar || '👤'}</span>
-                            <CircleStatus isOnline={currentUser.isOnline} status={currentUser.status} />
+                            <span className="text-xl">{users.find(u => u.id === currentUserId)?.avatar || '👤'}</span>
+                            <CircleStatus isOnline={users.find(u => u.id === currentUserId)?.isOnline} status={users.find(u => u.id === currentUserId)?.status} />
                           </>
                         ) : (
                           <>

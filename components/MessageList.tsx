@@ -1,9 +1,9 @@
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Message, User, Reaction } from "@/types/dataStructures"
+import { Message, User, Reaction, Channel } from "@/types/dataStructures"
 import { ReactionPicker } from "./ReactionPicker"
 import { FileAttachment } from "./FileAttachment"
 import { CircleStatus } from "@/components/ui/circle-status"
-import { MoreHorizontal, Pencil, Trash2, Hash, Users, Settings, PlayCircle, Loader2, PauseCircle, StopCircle } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2, Hash, Users, Settings, PlayCircle, Loader2, PauseCircle, StopCircle, Speaker } from "lucide-react"
 import { getChannelDisplayName } from "@/lib/utils"
 import {
   DropdownMenu,
@@ -29,6 +29,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { VoiceSampleUpload } from "./VoiceSampleUpload"
 
 interface MessageListProps {
   messages: Message[];
@@ -46,6 +47,8 @@ interface MessageListProps {
   isDM?: boolean;
   isSelfNote?: boolean;
   memberships?: { userId: string }[];
+  channel?: Channel;
+  onDataRefresh?: () => void;
 }
 
 export function MessageList({ 
@@ -63,10 +66,12 @@ export function MessageList({
   channelId,
   isDM,
   isSelfNote,
-  memberships
+  memberships,
+  channel,
+  onDataRefresh
 }: MessageListProps) {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
-  const [isPromptOpen, setIsPromptOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [channelPrompt, setChannelPrompt] = useState<string>('');
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
   const [loadingMessageId, setLoadingMessageId] = useState<string | null>(null);
@@ -102,7 +107,7 @@ export function MessageList({
         setChannelPrompt('');
       }
     }
-    setIsPromptOpen(open);
+    setIsSettingsOpen(open);
   };
 
   const getReactionCounts = (messageId: string) => {
@@ -177,7 +182,7 @@ export function MessageList({
         throw new Error('Failed to update prompt');
       }
 
-      setIsPromptOpen(false);
+      setIsSettingsOpen(false);
     } catch (error) {
       console.error('Error updating channel prompt:', error);
     }
@@ -306,8 +311,8 @@ export function MessageList({
 
           <div className="flex items-center space-x-2">
             {/* Channel Settings Button - Only show in non-DM channels */}
-            {!isDM && (
-              <Dialog open={isPromptOpen} onOpenChange={handleDialogOpen}>
+            {!isDM && channel && (
+              <Dialog open={isSettingsOpen} onOpenChange={handleDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="ghost" size="icon">
                     <Settings className="h-4 w-4" />
@@ -317,7 +322,12 @@ export function MessageList({
                   <DialogHeader>
                     <DialogTitle>Channel Settings</DialogTitle>
                     <DialogDescription>
-                      Configure how the bot behaves in this channel
+                      Configure the channel's bot and voice settings.
+                      {channel?.voiceSampleUrl && (
+                        <div className="mt-2 text-sm text-muted-foreground">
+                          Current voice sample: {channel.voiceSampleUrl.split('/').pop()?.split('-').slice(1).join('-')}
+                        </div>
+                      )}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
@@ -328,6 +338,20 @@ export function MessageList({
                         value={channelPrompt}
                         onChange={(e) => setChannelPrompt(e.target.value)}
                         className="min-h-[100px]"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Channel Voice</label>
+                      <p className="text-sm text-muted-foreground">Upload a voice sample to create a custom voice for this channel's bot.</p>
+                      <VoiceSampleUpload 
+                        entityId={channel.id} 
+                        entityType="channel"
+                        currentVoiceStatus={channel.voiceStatus}
+                        currentVoiceSampleUrl={channel.voiceSampleUrl}
+                        onUploadComplete={() => {
+                          onDataRefresh?.();
+                          setIsSettingsOpen(false);
+                        }}
                       />
                     </div>
                     <Button onClick={handlePromptSave}>Save Changes</Button>
@@ -410,20 +434,34 @@ export function MessageList({
                         </TooltipProvider>
                       )}
                       {!message.isDeleted && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="ml-2"
-                          onClick={() => handlePlayTTS(message.id, message.content)}
-                        >
-                          {loadingMessageId === message.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : audioStates[message.id]?.isPlaying ? (
-                            <PauseCircle className="h-4 w-4" />
-                          ) : (
-                            <PlayCircle className="h-4 w-4" />
+                        <div className="flex items-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="mr-0"
+                            onClick={() => handlePlayTTS(message.id, message.content)}
+                          >
+                            {loadingMessageId === message.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : audioStates[message.id]?.isPlaying ? (
+                              <PauseCircle className="h-4 w-4" />
+                            ) : (
+                              <PlayCircle className="h-4 w-4" />
+                            )}
+                          </Button>
+                          {audioStates[message.id]?.url && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Speaker className="h-4 w-4 text-muted-foreground ml-1" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Audio cached</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
-                        </Button>
+                        </div>
                       )}
                       {isCurrentUserMessage && (
                         <DropdownMenu>

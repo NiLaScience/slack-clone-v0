@@ -7,6 +7,9 @@ export type User = {
   isOnline: boolean;
   isBot: boolean;
   prompt: string | null;
+  voiceId?: string;
+  voiceSampleUrl?: string;
+  voiceStatus?: string;
   lastActiveAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -18,6 +21,10 @@ export interface Channel {
   isPrivate: boolean;
   isDM: boolean;
   isSelfNote: boolean;
+  prompt?: string;
+  voiceId?: string;
+  voiceSampleUrl?: string;
+  voiceStatus?: string;
   createdAt: Date;
   updatedAt: Date;
   memberIds?: string[];

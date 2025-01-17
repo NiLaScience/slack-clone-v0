@@ -22,6 +22,9 @@ model User {
   isOnline    Boolean             @default(false)
   isBot       Boolean             @default(false)
   prompt      String?             @db.Text
+  voiceId     String?             // ElevenLabs voice ID
+  voiceSampleUrl String?          // S3 URL of the voice sample
+  voiceStatus String?             // pending, processing, ready, failed
   lastActiveAt DateTime @default(now())
   createdAt   DateTime
   updatedAt   DateTime
@@ -39,6 +42,9 @@ model Channel {
   isDM        Boolean             @default(false)
   isSelfNote  Boolean             @default(false)
   prompt      String?             @db.Text
+  voiceId     String?             // ElevenLabs voice ID
+  voiceSampleUrl String?          // S3 URL of the voice sample
+  voiceStatus String?             // pending, processing, ready, failed
   createdAt   DateTime
   updatedAt   DateTime
   // A channel can have many messages

@@ -1,8 +1,6 @@
 {
-  "/api/users/online/route": "app/api/users/online/route.js",
-  "/api/users/profile/create/route": "app/api/users/profile/create/route.js",
+  "/api/channels/[channelId]/route": "app/api/channels/[channelId]/route.js",
+  "/api/voice-sample/route": "app/api/voice-sample/route.js",
   "/api/getData/route": "app/api/getData/route.js",
-  "/api/channels/join/route": "app/api/channels/join/route.js",
-  "/api/tts/route": "app/api/tts/route.js",
   "/(protected)/page": "app/(protected)/page.js"
 }

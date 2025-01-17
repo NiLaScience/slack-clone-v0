@@ -9,10 +9,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { User } from "@/types/dataStructures";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
+import { VoiceSampleUpload } from "./VoiceSampleUpload";
 
 interface UserMenuProps {
   user: {
@@ -22,14 +23,17 @@ interface UserMenuProps {
     avatar: string | null;
     status: string | null;
     prompt: string | null;
+    voiceStatus?: string | null;
     isOnline: boolean;
+    voiceSampleUrl?: string;
   };
   onSetStatus: (newStatus: string) => void;
   onSetAvatar: (newEmoji: string) => void;
   onSetName: (newName: string) => void;
+  onDataRefresh?: () => void;
 }
 
-export function UserMenu({ user, onSetStatus, onSetAvatar, onSetName }: UserMenuProps) {
+export function UserMenu({ user, onSetStatus, onSetAvatar, onSetName, onDataRefresh }: UserMenuProps) {
   const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
   const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
   const [isPromptDialogOpen, setIsPromptDialogOpen] = useState(false);
@@ -38,6 +42,7 @@ export function UserMenu({ user, onSetStatus, onSetAvatar, onSetName }: UserMenu
   const [newAvatar, setNewAvatar] = useState(user.avatar || '');
   const [newPrompt, setNewPrompt] = useState(user.prompt || '');
   const [customStatus, setCustomStatus] = useState(user.status || '');
+  const [isVoiceDialogOpen, setIsVoiceDialogOpen] = useState(false);
 
   const handleNameSubmit = () => {
     onSetName(newName);
@@ -147,6 +152,42 @@ export function UserMenu({ user, onSetStatus, onSetAvatar, onSetName }: UserMenu
                 />
               </div>
               <Button onClick={handlePromptSubmit}>Save Prompt</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={isVoiceDialogOpen} onOpenChange={setIsVoiceDialogOpen}>
+          <DialogTrigger asChild>
+            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+              🎙️ Voice Settings
+            </DropdownMenuItem>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Voice Settings</DialogTitle>
+              <DialogDescription>
+                Upload a voice sample to customize your voice in the chat.
+                {user.voiceSampleUrl && (
+                  <div className="mt-2 text-sm text-muted-foreground">
+                    Current sample: {user.voiceSampleUrl.split('/').pop()?.split('-').slice(1).join('-')}
+                  </div>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Your Voice Sample</label>
+                <p className="text-sm text-muted-foreground">Upload a voice sample to create your personal TTS voice. This will be used when the bot speaks in your DMs.</p>
+                <VoiceSampleUpload 
+                  entityId={user.id} 
+                  entityType="user"
+                  currentVoiceStatus={user.voiceStatus}
+                  currentVoiceSampleUrl={user.voiceSampleUrl}
+                  onUploadComplete={() => {
+                    onDataRefresh?.();
+                    setIsVoiceDialogOpen(false);
+                  }}
+                />
+              </div>
             </div>
           </DialogContent>
         </Dialog>

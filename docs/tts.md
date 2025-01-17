@@ -24,9 +24,10 @@
   - Clean up URLs after playback
 
 ### Optional Performance Optimizations
-- [ ] Implement basic client-side caching
+- [x] Implement basic client-side caching
   - Key: `messageId + voiceId`
-  - Storage: In-memory or localStorage
+  - Storage: In-memory cache in tts.ts
+  - Visual indicator for cached messages
 - [ ] Consider background pre-generation for latest N messages
 
 ## Stage 2: Voice Cloning 🎭
@@ -81,5 +82,5 @@ model Channel {
 ## Notes
 - Start with Stage 1 for quick wins
 - Voice cloning (Stage 2) requires additional ElevenLabs API quotas
-- Consider implementing caching early if latency becomes an issue
+- Consider implementing caching early if latency becomes an issue ✅
 - Monitor API usage to stay within limits 

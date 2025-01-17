@@ -81,7 +81,10 @@ export async function GET(req: NextRequest) {
           name: true,
           avatar: true,
           status: true,
-          isBot: true
+          isBot: true,
+          voiceId: true,
+          voiceSampleUrl: true,
+          voiceStatus: true
         }
       }),
       prisma.reaction.findMany({
