@@ -1,11 +1,11 @@
 {
-  "/api/users/docs/route": "app/api/users/docs/route.js",
   "/api/users/online/route": "app/api/users/online/route.js",
-  "/api/users/profile/create/route": "app/api/users/profile/create/route.js",
+  "/api/channels/join/route": "app/api/channels/join/route.js",
   "/api/getData/route": "app/api/getData/route.js",
-  "/api/users/docs/chat/route": "app/api/users/docs/chat/route.js",
-  "/sign-in/[[...sign-in]]/page": "app/sign-in/[[...sign-in]]/page.js",
-  "/(protected)/my-docs/chat/page": "app/(protected)/my-docs/chat/page.js",
+  "/api/tts/route": "app/api/tts/route.js",
+  "/api/users/docs/route": "app/api/users/docs/route.js",
+  "/api/users/profile/create/route": "app/api/users/profile/create/route.js",
+  "/(protected)/page": "app/(protected)/page.js",
   "/(protected)/my-docs/page": "app/(protected)/my-docs/page.js",
-  "/(protected)/page": "app/(protected)/page.js"
+  "/(protected)/my-docs/chat/page": "app/(protected)/my-docs/chat/page.js"
 }

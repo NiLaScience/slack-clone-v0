@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Message, User, Reaction } from "@/types/dataStructures"
 import { ReactionPicker } from "./ReactionPicker"
 import { Button } from "@/components/ui/button"
-import { X, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { X, MoreHorizontal, Pencil, Trash2, PlayCircle, Loader2 } from 'lucide-react'
 import { MessageInput } from "./MessageInput"
 import { FileAttachment } from "./FileAttachment"
 import {
@@ -39,10 +39,48 @@ export function ThreadView({
   currentUserId
 }: ThreadViewProps) {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   if (!parentMessage) {
     return <div className="p-4">No parent message found.</div>
   }
+
+  const handlePlayTTS = async (messageId: string, text: string) => {
+    try {
+      if (playingMessageId === messageId) {
+        audioRef.current?.pause();
+        setPlayingMessageId(null);
+        return;
+      }
+
+      setPlayingMessageId(messageId);
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!res.ok) throw new Error('TTS failed');
+
+      const audioBlob = await res.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+
+      audioRef.current = new Audio(audioUrl);
+      audioRef.current.onended = () => {
+        setPlayingMessageId(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+      audioRef.current.play();
+    } catch (error) {
+      console.error('TTS error:', error);
+      setPlayingMessageId(null);
+    }
+  };
 
   const handleReply = (content: string, attachments: File[]) => {
     onReply(content, attachments, parentMessage.id);
@@ -84,6 +122,20 @@ export function ThreadView({
               </span>
               {message.editedAt && (
                 <span className="text-xs text-gray-500 ml-2">(edited)</span>
+              )}
+              {!message.isDeleted && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-2"
+                  onClick={() => handlePlayTTS(message.id, message.content)}
+                >
+                  {playingMessageId === message.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <PlayCircle className="h-4 w-4" />
+                  )}
+                </Button>
               )}
               {isCurrentUserMessage && (
                 <DropdownMenu>

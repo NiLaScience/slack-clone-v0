@@ -3,7 +3,7 @@ import { Message, User, Reaction } from "@/types/dataStructures"
 import { ReactionPicker } from "./ReactionPicker"
 import { FileAttachment } from "./FileAttachment"
 import { CircleStatus } from "@/components/ui/circle-status"
-import { MoreHorizontal, Pencil, Trash2, Hash, Users, Settings } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2, Hash, Users, Settings, PlayCircle, Loader2 } from "lucide-react"
 import { getChannelDisplayName } from "@/lib/utils"
 import {
   DropdownMenu,
@@ -17,7 +17,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { MessageInput } from "./MessageInput"
 import { Button } from "@/components/ui/button"
 import {
@@ -68,6 +68,8 @@ export function MessageList({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [channelPrompt, setChannelPrompt] = useState<string>('');
+  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Fetch channel prompt when dialog opens
   const handleDialogOpen = async (open: boolean) => {
@@ -166,6 +168,42 @@ export function MessageList({
       setIsPromptOpen(false);
     } catch (error) {
       console.error('Error updating channel prompt:', error);
+    }
+  };
+
+  const handlePlayTTS = async (messageId: string, text: string) => {
+    try {
+      if (playingMessageId === messageId) {
+        audioRef.current?.pause();
+        setPlayingMessageId(null);
+        return;
+      }
+
+      setPlayingMessageId(messageId);
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!res.ok) throw new Error('TTS failed');
+
+      const audioBlob = await res.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+
+      audioRef.current = new Audio(audioUrl);
+      audioRef.current.onended = () => {
+        setPlayingMessageId(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+      audioRef.current.play();
+    } catch (error) {
+      console.error('TTS error:', error);
+      setPlayingMessageId(null);
     }
   };
 
@@ -305,6 +343,20 @@ export function MessageList({
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
+                      )}
+                      {!message.isDeleted && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="ml-2"
+                          onClick={() => handlePlayTTS(message.id, message.content)}
+                        >
+                          {playingMessageId === message.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <PlayCircle className="h-4 w-4" />
+                          )}
+                        </Button>
                       )}
                       {isCurrentUserMessage && (
                         <DropdownMenu>
