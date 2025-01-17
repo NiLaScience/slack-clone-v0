@@ -151,16 +151,33 @@ export async function queryMessages(query: string, channelId?: string, ownerId?:
     includeMetadata: true
   }) : { matches: [] };
 
-  // Query documents if ownerId provided
-  const documentResults = ownerId ? await index.query({
-    vector: queryEmbedding,
-    filter: { 
+  // Query documents based on context
+  let documentFilter;
+  if (channel?.isDM) {
+    // In DMs, only look for user's personal documents
+    documentFilter = { 
       ownerId,
       type: 'pdf_chunk'
-    },
+    };
+  } else if (channelId) {
+    // In channels, look for channel documents
+    documentFilter = {
+      channelId,
+      type: 'pdf_chunk'
+    };
+  } else {
+    // Fallback - just filter by type
+    documentFilter = {
+      type: 'pdf_chunk'
+    };
+  }
+
+  const documentResults = await index.query({
+    vector: queryEmbedding,
+    filter: documentFilter,
     topK: 5,
     includeMetadata: true
-  }) : { matches: [] };
+  });
 
   console.log('[RAG] Query results:', {
     messageMatches: messageResults.matches.length,

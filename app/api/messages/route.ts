@@ -105,7 +105,11 @@ export async function POST(req: NextRequest) {
           
           // Process PDFs in the background by calling the PDF processing endpoint
           Promise.all(pdfAttachments.map(attachment => {
-            return fetch('/api/rag/process-pdf', {
+            const baseUrl = process.env.VERCEL_URL 
+              ? `https://${process.env.VERCEL_URL}` 
+              : process.env.APP_URL || 'http://localhost:3000';
+              
+            return fetch(`${baseUrl}/api/rag/process-pdf`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -113,12 +117,9 @@ export async function POST(req: NextRequest) {
                 channelId: message.channelId,
                 senderId: message.senderId,
                 attachmentId: attachment.id,
-                fileUrl: attachment.fileUrl,
                 filename: attachment.filename,
-                isDM: message.channel.isDM
+                url: attachment.fileUrl
               })
-            }).catch(err => {
-              console.error('[PDF] Error processing attachment:', attachment.filename, err);
             });
           })).catch(err => {
             console.error('[PDF] Error in PDF processing:', err);
