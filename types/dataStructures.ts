@@ -21,10 +21,10 @@ export interface Channel {
   isPrivate: boolean;
   isDM: boolean;
   isSelfNote: boolean;
-  prompt?: string;
-  voiceId?: string;
-  voiceSampleUrl?: string;
-  voiceStatus?: string;
+  prompt: string | null;
+  voiceId: string | null;
+  voiceSampleUrl: string | null;
+  voiceStatus: string | null;
   createdAt: Date;
   updatedAt: Date;
   memberIds?: string[];

@@ -9,8 +9,7 @@ import { ThreadView } from '@/components/ThreadView'
 import { SearchBar } from '@/components/SearchBar'
 import { Message, Channel, User, Reaction } from '@/types/dataStructures'
 import Pusher from 'pusher-js'
-import { ChatInput } from '@/components/ChatInput'
-import { Thread } from '@/components/Thread'
+import { MessageInput } from '@/components/MessageInput'
 import { Navbar } from '@/components/Navbar'
 
 type AppData = {
