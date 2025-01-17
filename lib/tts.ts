@@ -1,12 +1,22 @@
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"; // Rachel voice
 
+// Simple in-memory cache
+const ttsCache: Record<string, ArrayBuffer> = {};
+
 export async function getTTSAudio(
   text: string,
-  voiceId: string = DEFAULT_VOICE_ID
+  voiceId: string = DEFAULT_VOICE_ID,
+  messageId?: string
 ): Promise<ArrayBuffer> {
   if (!text) throw new Error("No text provided");
   if (!ELEVENLABS_API_KEY) throw new Error("Missing ElevenLabs API key");
+
+  // Use cache if available
+  const cacheKey = messageId || `${text}-${voiceId}`;
+  if (ttsCache[cacheKey]) {
+    return ttsCache[cacheKey];
+  }
 
   const response = await fetch(
     `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
@@ -32,5 +42,10 @@ export async function getTTSAudio(
     throw new Error(`TTS API error: ${response.statusText}`);
   }
 
-  return response.arrayBuffer();
+  const audioBuffer = await response.arrayBuffer();
+  
+  // Cache the result
+  ttsCache[cacheKey] = audioBuffer;
+
+  return audioBuffer;
 } 

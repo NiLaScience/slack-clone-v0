@@ -1,9 +1,9 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Message, User, Reaction } from "@/types/dataStructures"
 import { ReactionPicker } from "./ReactionPicker"
 import { Button } from "@/components/ui/button"
-import { X, MoreHorizontal, Pencil, Trash2, PlayCircle, Loader2 } from 'lucide-react'
+import { X, MoreHorizontal, Pencil, Trash2, PlayCircle, Loader2, PauseCircle } from 'lucide-react'
 import { MessageInput } from "./MessageInput"
 import { FileAttachment } from "./FileAttachment"
 import {
@@ -40,7 +40,19 @@ export function ThreadView({
 }: ThreadViewProps) {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  const [loadingMessageId, setLoadingMessageId] = useState<string | null>(null);
+  const [audioStates, setAudioStates] = useState<Record<string, { url: string | null; isPlaying: boolean }>>({}); 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup all audio URLs
+      Object.values(audioStates).forEach(state => {
+        if (state.url) URL.revokeObjectURL(state.url);
+      });
+    };
+  }, [audioStates]);
 
   if (!parentMessage) {
     return <div className="p-4">No parent message found.</div>
@@ -48,17 +60,53 @@ export function ThreadView({
 
   const handlePlayTTS = async (messageId: string, text: string) => {
     try {
-      if (playingMessageId === messageId) {
-        audioRef.current?.pause();
-        setPlayingMessageId(null);
+      // If already has audio URL
+      if (audioStates[messageId]?.url) {
+        if (audioStates[messageId].isPlaying) {
+          // Pause current playback
+          audioRef.current?.pause();
+          setAudioStates(prev => ({
+            ...prev,
+            [messageId]: { ...prev[messageId], isPlaying: false }
+          }));
+          setPlayingMessageId(null);
+        } else {
+          // Resume or start new playback
+          if (playingMessageId && playingMessageId !== messageId) {
+            audioRef.current?.pause();
+            setAudioStates(prev => ({
+              ...prev,
+              [playingMessageId]: { ...prev[playingMessageId], isPlaying: false }
+            }));
+          }
+          
+          if (!audioRef.current || audioRef.current.src !== audioStates[messageId].url) {
+            audioRef.current = new Audio(audioStates[messageId].url!);
+            audioRef.current.onended = () => {
+              setAudioStates(prev => ({
+                ...prev,
+                [messageId]: { ...prev[messageId], isPlaying: false }
+              }));
+              setPlayingMessageId(null);
+            };
+          }
+          
+          audioRef.current.play();
+          setAudioStates(prev => ({
+            ...prev,
+            [messageId]: { ...prev[messageId], isPlaying: true }
+          }));
+          setPlayingMessageId(messageId);
+        }
         return;
       }
 
-      setPlayingMessageId(messageId);
+      // Generate new audio
+      setLoadingMessageId(messageId);
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, messageId }),
       });
 
       if (!res.ok) throw new Error('TTS failed');
@@ -66,19 +114,36 @@ export function ThreadView({
       const audioBlob = await res.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
 
-      if (audioRef.current) {
-        audioRef.current.pause();
+      // Stop any current playback
+      if (playingMessageId) {
+        audioRef.current?.pause();
+        setAudioStates(prev => ({
+          ...prev,
+          [playingMessageId]: { ...prev[playingMessageId], isPlaying: false }
+        }));
       }
 
+      // Setup new audio
       audioRef.current = new Audio(audioUrl);
       audioRef.current.onended = () => {
+        setAudioStates(prev => ({
+          ...prev,
+          [messageId]: { ...prev[messageId], isPlaying: false }
+        }));
         setPlayingMessageId(null);
-        URL.revokeObjectURL(audioUrl);
       };
+
+      // Start playback
       audioRef.current.play();
+      setAudioStates(prev => ({
+        ...prev,
+        [messageId]: { url: audioUrl, isPlaying: true }
+      }));
+      setPlayingMessageId(messageId);
     } catch (error) {
       console.error('TTS error:', error);
-      setPlayingMessageId(null);
+    } finally {
+      setLoadingMessageId(null);
     }
   };
 
@@ -130,8 +195,10 @@ export function ThreadView({
                   className="ml-2"
                   onClick={() => handlePlayTTS(message.id, message.content)}
                 >
-                  {playingMessageId === message.id ? (
+                  {loadingMessageId === message.id ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : audioStates[message.id]?.isPlaying ? (
+                    <PauseCircle className="h-4 w-4" />
                   ) : (
                     <PlayCircle className="h-4 w-4" />
                   )}
