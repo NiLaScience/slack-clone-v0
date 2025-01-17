@@ -1,10 +1,5 @@
 {
   "pages": {
-    "/api/users/online/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/users/online/route.js"
-    ],
     "/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -26,15 +21,15 @@
       "static/chunks/main-app.js",
       "static/chunks/app/api/users/profile/create/route.js"
     ],
+    "/api/users/online/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/users/online/route.js"
+    ],
     "/api/getData/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/getData/route.js"
-    ],
-    "/api/voice-sample/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/voice-sample/route.js"
     ],
     "/api/channels/join/route": [
       "static/chunks/webpack.js",

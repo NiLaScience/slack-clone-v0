@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@clerk/nextjs'
-import { redirect } from 'next/navigation'
+import { redirect, useRouter } from 'next/navigation'
 import { useEffect, useState, useRef } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { MessageList } from '@/components/MessageList'
@@ -9,7 +9,9 @@ import { ThreadView } from '@/components/ThreadView'
 import { SearchBar } from '@/components/SearchBar'
 import { Message, Channel, User, Reaction } from '@/types/dataStructures'
 import Pusher from 'pusher-js'
-import { UserMenu } from '@/components/UserMenu'
+import { ChatInput } from '@/components/ChatInput'
+import { Thread } from '@/components/Thread'
+import { Navbar } from '@/components/Navbar'
 
 type AppData = {
   messages: Message[]
@@ -869,16 +871,6 @@ export default function Home() {
           })()}
         </main>
       </div>
-      <UserMenu 
-        user={data.users.find(u => u.id === userId)!} 
-        onSetStatus={handleSetUserStatus}
-        onSetAvatar={handleSetUserAvatar}
-        onSetName={handleSetUserName}
-        onDataRefresh={async () => {
-          const newData = await fetch('/api/getData').then(res => res.json())
-          setData(newData)
-        }}
-      />
     </div>
   )
 }
